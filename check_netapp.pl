@@ -96,12 +96,14 @@ sub checkAggregates{
 	my ($errorcount,$aggcount)=(0,0);
 	foreach my $this (keys %dfinfo){
 		my $usedbytes=$dfinfo{$this}{PcentUsedBytes};
+		my $hused=$dfinfo{$this}{HumanUsedBytes};
+		my $htotal=$dfinfo{$this}{HumanTotalBytes};
 		my $name=$dfinfo{$this}{Name};
 		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"Aggregate \'$name\' is at $usedbytes%.");
+			$plugin->add_message($exitcode,"Aggregate \'$name\' use is $hused/$htotal ($usedbytes%).");
 			$errorcount++;
 		}
 	}
