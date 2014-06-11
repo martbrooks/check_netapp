@@ -28,12 +28,12 @@ my ( $opt, $usage ) = describe_options(
 	[],
 	['Available Metrics:'],
 		['metric|m=s' => hidden => { one_of =>[
-			['testing' => 'testing'],
+			['aggregates' => 'Check aggregate usage.'],
 	]}],
 	[],
 	['Example usage:'],
-		["$0 --hostname 1.2.3.4 --warning 70 --critical 90 --cpu"],
-		["$0 -h 1.2.3.4 -w 70 -c 90 --cpu"],
+		["$0 --hostname 1.2.3.4 --warning 70 --critical 90 --aggregates"],
+		["$0 -h 1.2.3.4 -w 70 -c 90 --aggregates"],
 	[],
 );
 
@@ -70,13 +70,51 @@ my ($session,$error ) = Net::SNMP->session(
 );
 $plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unless $session;
 
-getDiskSpaceInfo();
+my ($warnneeded,$critneeded)=(0,0);
+sswitch($metric){
+        case 'aggregates' : { $warnneeded=1; $critneeded=1; }
+}
+
+if ($warnneeded && !defined($warning)){
+        $plugin->nagios_exit(UNKNOWN, "The $metric check requires a warning threshold.");
+}
+
+if ($critneeded && !defined($critical)){
+        $plugin->nagios_exit(UNKNOWN, "The $metric check requires a critical threshold.");
+}
+
+sswitch($metric){
+        case 'aggregates' : { checkAggregates() }
+        default           : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
+}
+
+my ($exitcode,$message)=$plugin->check_messages;
+$plugin->nagios_exit($exitcode,$message);
+
+sub checkAggregates{
+	my %dfinfo=getDiskSpaceInfo();
+	my ($errorcount,$aggcount)=(0,0);
+	foreach my $this (keys %dfinfo){
+		my $usedbytes=$dfinfo{$this}{PcentUsedBytes};
+		my $name=$dfinfo{$this}{Name};
+		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
+		$aggcount++;
+		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"Aggregate \'$name\' is at $usedbytes%.");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$aggcount aggregates OK.");
+	}
+}
 
 sub getDiskSpaceInfo{
         my $result = $session->get_table("$baseOID.1.5.4");
         $plugin->nagios_exit(UNKNOWN, "Cannot read interface utilisation information: " . $session->error ) unless defined $result;
-	use Data::Dumper;
-	my %dfinfo;
+	my %dfinfo=();
 	foreach my $line (keys %{$result}){
 		my @data=split/\./,$line;
 		my $item=$data[11];
@@ -100,9 +138,13 @@ sub getDiskSpaceInfo{
 		$dfinfo{$fs}{HumanUsedBytes}=format_bytes($dfinfo{$fs}{UsedBytes});
 		$dfinfo{$fs}{HumanFreeBytes}=format_bytes($dfinfo{$fs}{FreeBytes});
 		$dfinfo{$fs}{TotalInodes}=$dfinfo{$fs}{UsedInodes}+$dfinfo{$fs}{FreeInodes};
+		if ($dfinfo{$fs}{isSnapshot}==0){
+			$dfinfo{$fs}{PcentUsedBytes}=sprintf("%.3f",$dfinfo{$fs}{UsedBytes}/$dfinfo{$fs}{TotalBytes}*100);
+			$dfinfo{$fs}{PcentUsedInodes}=sprintf("%.3f",$dfinfo{$fs}{UsedInodes}/$dfinfo{$fs}{TotalInodes}*100);
+		}
+		$dfinfo{$fs}{isAggregate}=$dfinfo{$fs}{Type}==3?1:0
 	}
 
-	print Dumper %dfinfo;
 	return %dfinfo;
 }
 
