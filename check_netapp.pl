@@ -28,7 +28,8 @@ my ( $opt, $usage ) = describe_options(
 	[],
 	['Available Metrics:'],
 		['metric|m=s' => hidden => { one_of =>[
-			['aggregates' => 'Check aggregate usage.'],
+			['aggregatebytes'  => 'Check aggregate byte usage.'],
+			['aggregateinodes' => 'Check aggregate inodes usage.'],
 	]}],
 	[],
 	['Example usage:'],
@@ -72,7 +73,8 @@ $plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unl
 
 my ($warnneeded,$critneeded)=(0,0);
 sswitch($metric){
-        case 'aggregates' : { $warnneeded=1; $critneeded=1; }
+        case 'aggregatebytes'   : { $warnneeded=1; $critneeded=1; }
+        case 'aggregateinodess' : { $warnneeded=1; $critneeded=1; }
 }
 
 if ($warnneeded && !defined($warning)){
@@ -84,14 +86,15 @@ if ($critneeded && !defined($critical)){
 }
 
 sswitch($metric){
-        case 'aggregates' : { checkAggregates() }
-        default           : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
+        case 'aggregatebytes'  : { checkAggregateBytes() }
+        case 'aggregateinodes' : { checkAggregateInodes() }
+        default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
 }
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
 
-sub checkAggregates{
+sub checkAggregateBytes{
 	my %dfinfo=getDiskSpaceInfo();
 	my ($errorcount,$aggcount)=(0,0);
 	foreach my $this (keys %dfinfo){
@@ -103,7 +106,29 @@ sub checkAggregates{
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"Aggregate \'$name\' use is $hused/$htotal ($usedbytes%).");
+			$plugin->add_message($exitcode,"Aggregate \'$name\' byte use is $hused/$htotal ($usedbytes%).");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$aggcount aggregates OK.");
+	}
+}
+
+sub checkAggregateInodes{
+	my %dfinfo=getDiskSpaceInfo();
+	my ($errorcount,$aggcount)=(0,0);
+	foreach my $this (keys %dfinfo){
+		my $usedinodes=$dfinfo{$this}{PcentUsedInodes};
+		my $used=$dfinfo{$this}{UsedInodes};
+		my $total=$dfinfo{$this}{TotalInodes};
+		my $name=$dfinfo{$this}{Name};
+		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
+		$aggcount++;
+		$exitcode = $plugin->check_threshold(check => $usedinodes, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"Aggregate \'$name\' inode use is $used/$total ($usedinodes%).");
 			$errorcount++;
 		}
 	}
