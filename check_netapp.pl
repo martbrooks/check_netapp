@@ -76,5 +76,84 @@ sub getDiskSpaceInfo{
         my $result = $session->get_table("$baseOID.1.5.4");
         $plugin->nagios_exit(UNKNOWN, "Cannot read interface utilisation information: " . $session->error ) unless defined $result;
 	use Data::Dumper;
-	print Dumper $result;
+	my %dfinfo;
+	foreach my $line (keys %{$result}){
+		my @data=split/\./,$line;
+		my $item=$data[11];
+		my $fs=$data[12];
+		my $value=$result->{$line};
+		nswitch ($item){
+			case  2 : { $dfinfo{$fs}{Name}=$value; $dfinfo{$fs}{isSnapshot}=isSnapshot($value);}
+			case  7 : { $dfinfo{$fs}{UsedInodes}=$value; }
+			case  8 : { $dfinfo{$fs}{FreeInodes}=$value; }
+			case 20 : { $dfinfo{$fs}{Status}=$value; $dfinfo{$fs}{StatusText}=statusLookup($value);}
+			case 21 : { $dfinfo{$fs}{MirrorStatus}=$value; $dfinfo{$fs}{MirrorStatusText}=mirrorStatusLookup($value);}
+			case 23 : { $dfinfo{$fs}{Type}=$value; $dfinfo{$fs}{TypeText}=typeLookup($value);}
+			case 29 : { $dfinfo{$fs}{TotalBytes}=$value*1024; }
+			case 30 : { $dfinfo{$fs}{UsedBytes}=$value*1024; }
+			case 31 : { $dfinfo{$fs}{FreeBytes}=$value*1024; }
+		}
+	}
+
+	foreach my $fs (keys %dfinfo){
+		$dfinfo{$fs}{HumanTotalBytes}=format_bytes($dfinfo{$fs}{TotalBytes});
+		$dfinfo{$fs}{HumanUsedBytes}=format_bytes($dfinfo{$fs}{UsedBytes});
+		$dfinfo{$fs}{HumanFreeBytes}=format_bytes($dfinfo{$fs}{FreeBytes});
+		$dfinfo{$fs}{TotalInodes}=$dfinfo{$fs}{UsedInodes}+$dfinfo{$fs}{FreeInodes};
+	}
+
+	print Dumper %dfinfo;
+	return %dfinfo;
+}
+
+sub statusLookup{
+	my $value=shift;
+	my $text='';
+	nswitch ($value){
+		case  1 : { $text='unmounted';  }
+		case  2 : { $text='mounted';    }
+		case  3 : { $text='frozen';     }
+		case  4 : { $text='destroying'; }
+		case  5 : { $text='creating';   }
+		case  6 : { $text='mounting';   }
+		case  7 : { $text='unmounting'; }
+		case  8 : { $text='nofsinfo';   }
+		case  9 : { $text='replaying';  }
+		case 10 : { $text='replayed';   }
+	}
+	return $text;
+}
+
+sub mirrorStatusLookup{
+	my $value=shift;
+	my $text='';
+	nswitch ($value){
+		case  1 : { $text='invalid';  }
+		case  2 : { $text='uninitialized';    }
+		case  3 : { $text='needcpcheck';     }
+		case  4 : { $text='cpcheckwait'; }
+		case  5 : { $text='unmirrored';   }
+		case  6 : { $text='normal';   }
+		case  7 : { $text='degraded'; }
+		case  8 : { $text='resyncing';   }
+		case  9 : { $text='failed';  }
+		case 10 : { $text='limbo';   }
+	}
+	return $text;
+}
+
+sub typeLookup{
+	my $value=shift;
+	my $text='';
+	nswitch ($value){
+		case 1 : { $text='traditional'; }
+		case 2 : { $text='flexible';    }
+		case 3 : { $text='aggregate';   }
+	}
+	return $text;
+}
+
+sub isSnapshot{
+	my $name=shift;
+	return $name=~/\/\.snapshot$/?1:0;
 }
