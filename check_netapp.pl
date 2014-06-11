@@ -28,7 +28,7 @@ my ( $opt, $usage ) = describe_options(
 	[],
 	['Available Metrics:'],
 		['metric|m=s' => hidden => { one_of =>[
-			['vvolcapacity' => 'Virtual volume capacity and free space.'],
+			['testing' => 'testing'],
 	]}],
 	[],
 	['Example usage:'],
@@ -39,11 +39,8 @@ my ( $opt, $usage ) = describe_options(
 
 my $community = $opt->community;
 my $critical  = $opt->critical;
-my $filter    = $opt->filter;
 my $hostname  = $opt->hostname;
 my $metric    = $opt->metric || '';
-my $password  = $opt->password;
-my $username  = $opt->username;
 my $warning   = $opt->warning;
 
 if ($opt->help || $metric eq ''){
@@ -55,4 +52,29 @@ my $config=dirname(abs_path($0))."/check_netapp_config.yaml";
 my $yaml;
 if (-e "$config"){
         $yaml=LoadFile("$config");
+}
+
+$hostname=lc($hostname);
+if ($yaml->{hostmap}->{$hostname}){
+        $hostname=lc($yaml->{hostmap}->{$hostname});
+}
+
+my $plugin = Nagios::Plugin->new;
+my $baseOID = '1.3.6.1.4.1.789';
+
+my ($session,$error ) = Net::SNMP->session(
+	-hostname  => "$hostname",
+	-community => "$community",
+	-timeout   => 30,
+	-version   => 'snmpv2c'
+);
+$plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unless $session;
+
+getDiskSpaceInfo();
+
+sub getDiskSpaceInfo{
+        my $result = $session->get_table("$baseOID.1.5.4");
+        $plugin->nagios_exit(UNKNOWN, "Cannot read interface utilisation information: " . $session->error ) unless defined $result;
+	use Data::Dumper;
+	print Dumper $result;
 }
