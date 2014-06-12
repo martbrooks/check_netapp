@@ -104,11 +104,11 @@ sub checkAggregateBytes{
 	my %dfinfo=getDiskSpaceInfo();
 	my ($errorcount,$aggcount)=(0,0);
 	foreach my $this (keys %dfinfo){
+		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
 		my $usedbytes=$dfinfo{$this}{PcentUsedBytes};
 		my $hused=$dfinfo{$this}{HumanUsedBytes};
 		my $htotal=$dfinfo{$this}{HumanTotalBytes};
 		my $name=$dfinfo{$this}{Name};
-		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
@@ -126,11 +126,11 @@ sub checkAggregateInodes{
 	my %dfinfo=getDiskSpaceInfo();
 	my ($errorcount,$aggcount)=(0,0);
 	foreach my $this (keys %dfinfo){
+		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
 		my $usedinodes=$dfinfo{$this}{PcentUsedInodes};
 		my $used=$dfinfo{$this}{UsedInodes};
 		my $total=$dfinfo{$this}{TotalInodes};
 		my $name=$dfinfo{$this}{Name};
-		next if ($dfinfo{$this}{isAggregate}==0 || $dfinfo{$this}{isSnapshot}==1);
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedinodes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
@@ -141,6 +141,50 @@ sub checkAggregateInodes{
 
 	if ($errorcount == 0){
 		$plugin->add_message(OK,"$aggcount aggregates OK.");
+	}
+}
+
+sub checkVolumeBytes{
+	my %dfinfo=getDiskSpaceInfo();
+	my ($errorcount,$volcount)=(0,0);
+	foreach my $this (keys %dfinfo){
+		next if ($dfinfo{$this}{isAggregate}==1 || $dfinfo{$this}{isSnapshot}==1);
+		my $usedbytes=$dfinfo{$this}{PcentUsedBytes};
+		my $hused=$dfinfo{$this}{HumanUsedBytes};
+		my $htotal=$dfinfo{$this}{HumanTotalBytes};
+		my $name=$dfinfo{$this}{Name};
+		$volcount++;
+		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"Volume \'$name\' byte use is $hused/$htotal ($usedbytes%).");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$volcount volumes OK.");
+	}
+}
+
+sub checkVolumeInodes{
+	my %dfinfo=getDiskSpaceInfo();
+	my ($errorcount,$volcount)=(0,0);
+	foreach my $this (keys %dfinfo){
+		next if ($dfinfo{$this}{isAggregate}==1 || $dfinfo{$this}{isSnapshot}==1);
+		my $usedinodes=$dfinfo{$this}{PcentUsedInodes};
+		my $used=$dfinfo{$this}{UsedInodes};
+		my $total=$dfinfo{$this}{TotalInodes};
+		my $name=$dfinfo{$this}{Name};
+		$volcount++;
+		$exitcode = $plugin->check_threshold(check => $usedinodes, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"Volume \'$name\' inode use is $used/$total ($usedinodes%).");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$volcount volumes OK.");
 	}
 }
 
