@@ -190,7 +190,7 @@ sub checkVolumeInodes{
 
 sub getDiskSpaceInfo{
         my $result = $session->get_table("$baseOID.1.5.4");
-        $plugin->nagios_exit(UNKNOWN, "Cannot read interface utilisation information: " . $session->error ) unless defined $result;
+        $plugin->nagios_exit(UNKNOWN, "Cannot read disk usage information: " . $session->error ) unless defined $result;
 	my %dfinfo=();
 	foreach my $line (keys %{$result}){
 		my @data=split/\./,$line;
