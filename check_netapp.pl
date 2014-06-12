@@ -29,7 +29,9 @@ my ( $opt, $usage ) = describe_options(
 	['Available Metrics:'],
 		['metric|m=s' => hidden => { one_of =>[
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
-			['aggregateinodes' => 'Check aggregate inodes usage.'],
+			['aggregateinodes' => 'Check aggregate inode usage.'],
+			['volumebytes'     => 'Check aggregate byte usage.'],
+			['volumeinodes'    => 'Check aggregate inode usage.'],
 	]}],
 	[],
 	['Example usage:'],
@@ -74,7 +76,9 @@ $plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unl
 my ($warnneeded,$critneeded)=(0,0);
 sswitch($metric){
         case 'aggregatebytes'   : { $warnneeded=1; $critneeded=1; }
-        case 'aggregateinodess' : { $warnneeded=1; $critneeded=1; }
+        case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
+        case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
+        case 'volumeinodes'     : { $warnneeded=1; $critneeded=1; }
 }
 
 if ($warnneeded && !defined($warning)){
@@ -86,8 +90,10 @@ if ($critneeded && !defined($critical)){
 }
 
 sswitch($metric){
-        case 'aggregatebytes'  : { checkAggregateBytes() }
+        case 'aggregatebytes'  : { checkAggregateBytes()  }
         case 'aggregateinodes' : { checkAggregateInodes() }
+        case 'volumebytes'     : { checkVolumeBytes()     }
+        case 'volumeinodes'    : { checkVolumeInodes()    }
         default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
 }
 
