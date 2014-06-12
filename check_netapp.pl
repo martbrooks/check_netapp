@@ -190,25 +190,35 @@ sub checkVolumeInodes{
 	}
 }
 
-sub CheckQuotas{
+sub checkQuotas{
 	my %quotainfo=getQuotaInfo();
 }
 
 sub getQuotaInfo{
 	use Data::Dumper;
-        my $result = $session->get_table("$baseOID.1.4.5");
+        my $result = $session->get_table("$baseOID.1.4.6");
         $plugin->nagios_exit(UNKNOWN, "Cannot read quota information: " . $session->error ) unless defined $result;
-	print Dumper $result;
 	my %quotainfo=();
 	foreach my $line (keys %{$result}){
 		my @data=split/\./,$line;
 		my $item=$data[11];
-		my $fs=$data[12];
+		my $vol=$data[12];
+		my $idx=$data[13];
+		my $volidx=$vol . "_" . $idx;
 		my $value=$result->{$line};
 		nswitch ($item){
-			case  2 : { }
+			case  2 : { $quotainfo{$volidx}{Type}=$value; $quotainfo{$volidx}{TypeText}=quotaTypeLookup($value); }
+			case  6 : { $quotainfo{$volidx}{BytesUnlimited}=$value; }
+			case  9 : { $quotainfo{$volidx}{FilesUsed}=$value; }
+			case 10 : { $quotainfo{$volidx}{FilesUnlimited}=$value; }
+			case 11 : { $quotainfo{$volidx}{FilesLimit}=$value; }
+			case 12 : { $quotainfo{$volidx}{PathName}=$value; }
+			case 14 : { $quotainfo{$volidx}{QTree}=$value; }
+			case 25 : { $quotainfo{$volidx}{BytesUsed}=$value; }
+			case 26 : { $quotainfo{$volidx}{BytesLimit}=$value; }
 		}
 	}
+	print Dumper %quotainfo;
 	return %quotainfo;
 }
 
@@ -225,9 +235,9 @@ sub getDiskSpaceInfo{
 			case  2 : { $dfinfo{$fs}{Name}=$value; $dfinfo{$fs}{isSnapshot}=isSnapshot($value);}
 			case  7 : { $dfinfo{$fs}{UsedInodes}=$value; }
 			case  8 : { $dfinfo{$fs}{FreeInodes}=$value; }
-			case 20 : { $dfinfo{$fs}{Status}=$value; $dfinfo{$fs}{StatusText}=statusLookup($value);}
-			case 21 : { $dfinfo{$fs}{MirrorStatus}=$value; $dfinfo{$fs}{MirrorStatusText}=mirrorStatusLookup($value);}
-			case 23 : { $dfinfo{$fs}{Type}=$value; $dfinfo{$fs}{TypeText}=typeLookup($value);}
+			case 20 : { $dfinfo{$fs}{Status}=$value; $dfinfo{$fs}{StatusText}=volumeStatusLookup($value);}
+			case 21 : { $dfinfo{$fs}{MirrorStatus}=$value; $dfinfo{$fs}{MirrorStatusText}=volumeMirrorStatusLookup($value);}
+			case 23 : { $dfinfo{$fs}{Type}=$value; $dfinfo{$fs}{TypeText}=volumeTypeLookup($value);}
 			case 29 : { $dfinfo{$fs}{TotalBytes}=$value*1024; }
 			case 30 : { $dfinfo{$fs}{UsedBytes}=$value*1024; }
 			case 31 : { $dfinfo{$fs}{FreeBytes}=$value*1024; }
@@ -249,7 +259,7 @@ sub getDiskSpaceInfo{
 	return %dfinfo;
 }
 
-sub statusLookup{
+sub volumeStatusLookup{
 	my $value=shift;
 	my $text='';
 	nswitch ($value){
@@ -267,7 +277,7 @@ sub statusLookup{
 	return $text;
 }
 
-sub mirrorStatusLookup{
+sub volumeMirrorStatusLookup{
 	my $value=shift;
 	my $text='';
 	nswitch ($value){
@@ -285,7 +295,7 @@ sub mirrorStatusLookup{
 	return $text;
 }
 
-sub typeLookup{
+sub volumeTypeLookup{
 	my $value=shift;
 	my $text='';
 	nswitch ($value){
@@ -299,4 +309,18 @@ sub typeLookup{
 sub isSnapshot{
 	my $name=shift;
 	return $name=~/\/\.snapshot$/?1:0;
+}
+
+sub quotaTypeLookup{
+	my $value=shift;
+	my $text='';
+	nswitch ($value){
+		case 1 : { $text='user';         }
+		case 2 : { $text='group';        }
+		case 3 : { $text='tree';         }
+		case 4 : { $text='userdefault';  }
+		case 5 : { $text='groupdefault'; }
+		case 6 : { $text='unknown';      }
+	}
+	return $text;
 }
