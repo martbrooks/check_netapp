@@ -30,6 +30,7 @@ my ( $opt, $usage ) = describe_options(
 		['metric|m=s' => hidden => { one_of =>[
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
+			['quota'           => 'Quota stub.'],
 			['volumebytes'     => 'Check aggregate byte usage.'],
 			['volumeinodes'    => 'Check aggregate inode usage.'],
 	]}],
@@ -92,6 +93,7 @@ if ($critneeded && !defined($critical)){
 sswitch($metric){
         case 'aggregatebytes'  : { checkAggregateBytes()  }
         case 'aggregateinodes' : { checkAggregateInodes() }
+	case 'quota'           : { checkQuotas()          }
         case 'volumebytes'     : { checkVolumeBytes()     }
         case 'volumeinodes'    : { checkVolumeInodes()    }
         default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
@@ -186,6 +188,28 @@ sub checkVolumeInodes{
 	if ($errorcount == 0){
 		$plugin->add_message(OK,"$volcount volumes OK.");
 	}
+}
+
+sub CheckQuotas{
+	my %quotainfo=getQuotaInfo();
+}
+
+sub getQuotaInfo{
+	use Data::Dumper;
+        my $result = $session->get_table("$baseOID.1.4.5");
+        $plugin->nagios_exit(UNKNOWN, "Cannot read quota information: " . $session->error ) unless defined $result;
+	print Dumper $result;
+	my %quotainfo=();
+	foreach my $line (keys %{$result}){
+		my @data=split/\./,$line;
+		my $item=$data[11];
+		my $fs=$data[12];
+		my $value=$result->{$line};
+		nswitch ($item){
+			case  2 : { }
+		}
+	}
+	return %quotainfo;
 }
 
 sub getDiskSpaceInfo{
