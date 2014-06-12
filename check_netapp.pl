@@ -247,16 +247,16 @@ sub mirrorStatusLookup{
 	my $value=shift;
 	my $text='';
 	nswitch ($value){
-		case  1 : { $text='invalid';  }
-		case  2 : { $text='uninitialized';    }
-		case  3 : { $text='needcpcheck';     }
-		case  4 : { $text='cpcheckwait'; }
-		case  5 : { $text='unmirrored';   }
-		case  6 : { $text='normal';   }
-		case  7 : { $text='degraded'; }
-		case  8 : { $text='resyncing';   }
-		case  9 : { $text='failed';  }
-		case 10 : { $text='limbo';   }
+		case  1 : { $text='invalid';       }
+		case  2 : { $text='uninitialized'; }
+		case  3 : { $text='needcpcheck';   }
+		case  4 : { $text='cpcheckwait';   }
+		case  5 : { $text='unmirrored';    }
+		case  6 : { $text='normal';        }
+		case  7 : { $text='degraded';      }
+		case  8 : { $text='resyncing';     }
+		case  9 : { $text='failed';        }
+		case 10 : { $text='limbo';         }
 	}
 	return $text;
 }
