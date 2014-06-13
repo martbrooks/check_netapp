@@ -261,14 +261,14 @@ sub checkUserByteQuotas{
 			$qunlim++;
 			next;
 		}
-		my $tree=$qinfo{$this}{QTree};
+		my $user=$qinfo{$this}{RealID};
 		my $usedbytes=$qinfo{$this}{PcentBytesUsed};
 		my $hused=$qinfo{$this}{HumanBytesUsed};
 		my $hlimit=$qinfo{$this}{HumanBytesLimit};
 		$qcount++;
 		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"$tree: $hused/$hlimit ($usedbytes%).");
+			$plugin->add_message($exitcode,"$user: $hused/$hlimit ($usedbytes%).");
 			$errorcount++;
 		}
 	}
@@ -287,14 +287,14 @@ sub checkUserFileQuotas{
 			$qunlim++;
 			next;
 		}
-		my $tree=$qinfo{$this}{QTree};
+		my $user=$qinfo{$this}{RealID};
 		my $usedfiles=$qinfo{$this}{PcentFilesUsed};
 		my $hused=$qinfo{$this}{FilesUsed};
 		my $hlimit=$qinfo{$this}{FilesLimit};
 		$qcount++;
 		$exitcode = $plugin->check_threshold(check => $usedfiles, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"$tree: $hused/$hlimit ($usedfiles%).");
+			$plugin->add_message($exitcode,"$user: $hused/$hlimit ($usedfiles%).");
 			$errorcount++;
 		}
 	}
@@ -318,12 +318,15 @@ sub getQuotaInfo{
 		my $value=$result->{$line};
 		nswitch ($item){
 			case  2 : { $quotainfo{$volidx}{Type}=$value; $quotainfo{$volidx}{TypeText}=quotaTypeLookup($value); }
+			case  3 : { $quotainfo{$volidx}{ID}=$value; }
 			case  6 : { $quotainfo{$volidx}{BytesUnlimited}=$value; }
 			case  9 : { $quotainfo{$volidx}{FilesUsed}=$value; }
 			case 10 : { $quotainfo{$volidx}{FilesUnlimited}=$value; }
 			case 11 : { $quotainfo{$volidx}{FilesLimit}=$value; }
 			case 12 : { $quotainfo{$volidx}{PathName}=$value; }
 			case 14 : { $quotainfo{$volidx}{QTree}=$value; }
+			case 15 : { $quotainfo{$volidx}{IDType}=$value; }
+			case 16 : { $quotainfo{$volidx}{SID}=$value; }
 			case 25 : { $quotainfo{$volidx}{BytesUsed}=$value; }
 			case 26 : { $quotainfo{$volidx}{BytesLimit}=$value; }
 		}
@@ -335,6 +338,11 @@ sub getQuotaInfo{
 		eval {
 			$quotainfo{$this}{PcentBytesUsed}=sprintf("%.3f",$quotainfo{$this}{BytesUsed}/$quotainfo{$this}{BytesLimit}*100);
 			$quotainfo{$this}{PcentFilesUsed}=sprintf("%.3f",$quotainfo{$this}{FilesUsed}/$quotainfo{$this}{FilesLimit}*100);
+		};
+		$quotainfo{$this}{RealID}='<Unknown>';
+		nswitch($quotainfo{$this}{IDType}){
+			case 1 : { $quotainfo{$this}{RealID}=$quotainfo{$this}{ID}; }
+			case 2 : { $quotainfo{$this}{RealID}=$quotainfo{$this}{SID}; }
 		}
 	}
 
@@ -372,7 +380,7 @@ sub getDiskSpaceInfo{
 			eval {
 				$dfinfo{$fs}{PcentUsedBytes}=sprintf("%.3f",$dfinfo{$fs}{UsedBytes}/$dfinfo{$fs}{TotalBytes}*100);
 				$dfinfo{$fs}{PcentUsedInodes}=sprintf("%.3f",$dfinfo{$fs}{UsedInodes}/$dfinfo{$fs}{TotalInodes}*100);
-			}
+			};
 		}
 		$dfinfo{$fs}{isAggregate}=$dfinfo{$fs}{Type}==3?1:0
 	}
