@@ -218,6 +218,15 @@ sub getQuotaInfo{
 			case 26 : { $quotainfo{$volidx}{BytesLimit}=$value; }
 		}
 	}
+
+	foreach my $this (keys %quotainfo){
+		$quotainfo{$this}{HumanBytesUsed}=format_bytes($quotainfo{$this}{BytesUsed});
+		$quotainfo{$this}{HumanBytesLimit}=format_bytes($quotainfo{$this}{BytesLimit});
+		eval {
+			$quotainfo{$this}{PcentBytesUsed}=sprintf("%.3f",$quotainfo{$this}{BytesUsed}/$quotainfo{$this}{BytesLimit}*100);
+			$quotainfo{$this}{PcentFilesUsed}=sprintf("%.3f",$quotainfo{$this}{FilesUsed}/$quotainfo{$this}{FilesLimit}*100);
+		}
+	}
 	print Dumper %quotainfo;
 	return %quotainfo;
 }
