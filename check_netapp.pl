@@ -32,6 +32,8 @@ my ( $opt, $usage ) = describe_options(
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
+			['userfilequotas'  => 'Check user file quotas.'],
+			['userbytequotas'  => 'Check user byte quotas.'],
 			['volumebytes'     => 'Check aggregate byte usage.'],
 			['volumeinodes'    => 'Check aggregate inode usage.'],
 	]}],
@@ -81,6 +83,8 @@ sswitch($metric){
         case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
         case 'treebytequotas'   : { $warnneeded=1; $critneeded=1; }
         case 'treefilequotas'   : { $warnneeded=1; $critneeded=1; }
+        case 'userbytequotas'   : { $warnneeded=1; $critneeded=1; }
+        case 'userfilequotas'   : { $warnneeded=1; $critneeded=1; }
         case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
         case 'volumeinodes'     : { $warnneeded=1; $critneeded=1; }
 }
@@ -98,6 +102,8 @@ sswitch($metric){
         case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
+	case 'userbytequotas'  : { checkUserByteQuotas()  }
+	case 'userfilequotas'  : { checkUserFileQuotas()  }
         case 'volumebytes'     : { checkVolumeBytes()     }
         case 'volumeinodes'    : { checkVolumeInodes()    }
         default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
@@ -198,6 +204,7 @@ sub checkTreeByteQuotas{
 	my %qinfo=getQuotaInfo();
 	my ($errorcount,$qcount,$qunlim)=(0,0,0);
 	foreach my $this (keys %qinfo){
+		next if $qinfo{$this}{Type}!=3;
 		if ($qinfo{$this}{BytesUnlimited}==2){
 			$qunlim++;
 			next;
@@ -223,6 +230,7 @@ sub checkTreeFileQuotas{
 	my %qinfo=getQuotaInfo();
 	my ($errorcount,$qcount,$qunlim)=(0,0,0);
 	foreach my $this (keys %qinfo){
+		next if $qinfo{$this}{Type}!=3;
 		if ($qinfo{$this}{FilesUnlimited}==2){
 			$qunlim++;
 			next;
@@ -243,6 +251,59 @@ sub checkTreeFileQuotas{
 		$plugin->add_message(OK,"$qcount tree file quotas OK, $qunlim unlimited quotas.");
 	}
 }
+
+sub checkUserByteQuotas{
+	my %qinfo=getQuotaInfo();
+	my ($errorcount,$qcount,$qunlim)=(0,0,0);
+	foreach my $this (keys %qinfo){
+		next if ($qinfo{$this}{Type}!=1 || $qinfo{$this}{Type}!=4);
+		if ($qinfo{$this}{BytesUnlimited}==2){
+			$qunlim++;
+			next;
+		}
+		my $tree=$qinfo{$this}{QTree};
+		my $usedbytes=$qinfo{$this}{PcentBytesUsed};
+		my $hused=$qinfo{$this}{HumanBytesUsed};
+		my $hlimit=$qinfo{$this}{HumanBytesLimit};
+		$qcount++;
+		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"$tree: $hused/$hlimit ($usedbytes%).");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$qcount tree user quotas OK, $qunlim unlimited quotas.");
+	}
+}
+
+sub checkUserFileQuotas{
+	my %qinfo=getQuotaInfo();
+	my ($errorcount,$qcount,$qunlim)=(0,0,0);
+	foreach my $this (keys %qinfo){
+		next if ($qinfo{$this}{Type}!=2 || $qinfo{$this}{Type}!=5);
+		if ($qinfo{$this}{FilesUnlimited}==2){
+			$qunlim++;
+			next;
+		}
+		my $tree=$qinfo{$this}{QTree};
+		my $usedfiles=$qinfo{$this}{PcentFilesUsed};
+		my $hused=$qinfo{$this}{FilesUsed};
+		my $hlimit=$qinfo{$this}{FilesLimit};
+		$qcount++;
+		$exitcode = $plugin->check_threshold(check => $usedfiles, warning => $warning, critical => $critical);
+		if ($exitcode != OK){
+			$plugin->add_message($exitcode,"$tree: $hused/$hlimit ($usedfiles%).");
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$qcount user file quotas OK, $qunlim unlimited quotas.");
+	}
+}
+
 
 sub getQuotaInfo{
         my $result = $session->get_table("$baseOID.1.4.6");
