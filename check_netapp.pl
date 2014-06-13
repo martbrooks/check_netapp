@@ -18,7 +18,7 @@ my $VERSION='2014061100';
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
 	['Plugin parameters:'],
-		['hostname|h=s'  => 'HNAS hostname or IP.',   { required => 1 } ],
+		['hostname|h=s'  => 'NetApp hostname or IP.',   { required => 1 } ],
 		['community|C=s' => 'SNMP community string.', { required => 1, default => 'public' }],
 		['help'          => 'Print help and usage.' ],
 	[],
@@ -39,8 +39,8 @@ my ( $opt, $usage ) = describe_options(
 	]}],
 	[],
 	['Example usage:'],
-		["$0 --hostname 1.2.3.4 --warning 70 --critical 90 --aggregates"],
-		["$0 -h 1.2.3.4 -w 70 -c 90 --aggregates"],
+		["$0 --hostname 1.2.3.4 --warning 70 --critical 90 --aggregatebytes"],
+		["$0 -h 1.2.3.4 -w 70 -c 90 --aggregatebytes"],
 	[],
 );
 
