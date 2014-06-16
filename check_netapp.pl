@@ -15,7 +15,7 @@ use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
-my $VERSION='2014061100';
+my $VERSION='2014061600';
 
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
@@ -32,6 +32,7 @@ my ( $opt, $usage ) = describe_options(
 		['metric|m=s' => hidden => { one_of =>[
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
+			['diskhealth'      => 'Check physical disk health.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
 			['uptime'          => 'Check system uptime.'],
@@ -104,6 +105,7 @@ if ($critneeded && !defined($critical)){
 sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
+	case 'diskhealth'      : { checkDiskHealth()      }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
 	case 'uptime'          : { checkUptime()          }
@@ -116,6 +118,36 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkDiskHealth{
+	my ($exitcode,$message);
+	my $errorcount=0;
+	my %dhinfo=getDiskHealthInfo();
+
+	if ($dhinfo{Failed}>0){
+		$errorcount++;
+		$plugin->add_message(CRITICAL, $dhinfo{Failed} . " failed disks: $dhinfo{FailedMessage}");
+	}
+
+	if ($dhinfo{Reconstructing}>0){
+		$errorcount++;
+		$plugin->add_message(WARNING, $dhinfo{Reconstructing} . ' disk(s) reconstructing.');
+	}
+
+	if ($dhinfo{ReconstructingParity}>0){
+		$errorcount++;
+		$plugin->add_message(WARNING, $dhinfo{ReconstructingParity} . ' disk(s) parity reconstructing.');
+	}
+
+	if ($dhinfo{AddingSpare}>0){
+		$errorcount++;
+		$plugin->add_message(WARNING, $dhinfo{AddingSpare} . ' spare disk(s) being added.');
+	}
+
+	if ($errorcount==0){
+		$plugin->add_message(OK,"$dhinfo{Total} disks present, $dhinfo{Active} active.");
+	}
+}
 
 sub checkUptime{
         my ($exitcode,$message);
@@ -469,4 +501,28 @@ sub quotaTypeLookup{
 		case 6 : { $text='unknown';      }
 	}
 	return $text;
+}
+
+
+sub getDiskHealthInfo{
+	my %dhinfo=();
+	for (my $oid=1; $oid<=11; $oid++){
+		my $result = $session->get_request("$baseOID.1.6.4.$oid.0");
+		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
+		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		nswitch ($oid){
+			case  1 : { $dhinfo{Total}=$data;                }
+			case  2 : { $dhinfo{Active}=$data;               }
+			case  3 : { $dhinfo{Reconstructing}=$data;       }
+			case  4 : { $dhinfo{ReconstructingParity}=$data; }
+			case  5 : { $dhinfo{VerifyingParity}=$data;      }
+			case  6 : { $dhinfo{Scrubbing}=$data;            }
+			case  7 : { $dhinfo{Failed}=$data;               }
+			case  8 : { $dhinfo{Spare}=$data;                }
+			case  9 : { $dhinfo{AddingSpare}=$data;          }
+			case 10 : { $dhinfo{FailedMessage}=$data;        }
+			case 11 : { $dhinfo{Prefailed}=$data;            }
+		}
+	}
+	return %dhinfo;
 }
