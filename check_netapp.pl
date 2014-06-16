@@ -11,6 +11,8 @@ use Nagios::Plugin qw(%STATUS_TEXT);
 use Net::SNMP;
 use Number::Bytes::Human qw(format_bytes parse_bytes);
 use Switch::Plain;
+use Time::Duration;
+use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
 my $VERSION='2014061100';
@@ -32,6 +34,7 @@ my ( $opt, $usage ) = describe_options(
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
+			['uptime'          => 'Check system uptime.'],
 			['userfilequotas'  => 'Check user file quotas.'],
 			['userbytequotas'  => 'Check user byte quotas.'],
 			['volumebytes'     => 'Check aggregate byte usage.'],
@@ -102,6 +105,7 @@ sswitch($metric){
         case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
+	case 'uptime'          : { checkUptime()          }
 	case 'userbytequotas'  : { checkUserByteQuotas()  }
 	case 'userfilequotas'  : { checkUserFileQuotas()  }
         case 'volumebytes'     : { checkVolumeBytes()     }
@@ -111,6 +115,18 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkUptime{
+        my ($exitcode,$message);
+	my $result = $session->get_request("$baseOID.1.2.1.1.0");
+	$plugin->nagios_exit(UNKNOWN, "Cannot check uptime: " . $session->error ) unless defined $result;
+	my $rawuptime=$result->{"$baseOID.1.2.1.1.0"};
+	$rawuptime=~s/\.\d\d$//;
+	my $uptime=parse_duration($rawuptime);
+	$exitcode = $plugin->check_threshold(check => $uptime/3600, warning => $warning, critical => $critical);
+	$message="System uptime is " . duration($uptime) . '.';
+	$plugin->add_message($exitcode,$message);
+}
 
 sub checkAggregateBytes{
 	my %dfinfo=getDiskSpaceInfo();
