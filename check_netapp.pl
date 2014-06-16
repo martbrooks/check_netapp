@@ -33,6 +33,7 @@ my ( $opt, $usage ) = describe_options(
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['diskhealth'      => 'Check physical disk health.'],
+			['nvrambattery'    => 'Check NVRAM battery status.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
 			['uptime'          => 'Check system uptime.'],
@@ -106,6 +107,7 @@ sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'diskhealth'      : { checkDiskHealth()      }
+	case 'nvrambattery'    : { checkNVRAMBattery()    }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
 	case 'uptime'          : { checkUptime()          }
@@ -118,6 +120,27 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkNVRAMBattery{
+	my $exitcode;
+	my $result = $session->get_request("$baseOID.1.2.5.1.0");
+	$plugin->nagios_exit(UNKNOWN, "Cannot read NVRAM battery status " . $session->error ) unless defined $result;
+	my $data=$result->{"$baseOID.1.2.5.1.0"};
+	my $message='NVRAM battery is ';
+	nswitch ($data){
+		case 1 : { $message.='OK';                   $exitcode=OK;       }
+		case 2 : { $message.='partially discharged'; $exitcode=WARNING;  }
+		case 3 : { $message.='full discharged';      $exitcode=CRITICAL; }
+		case 4 : { $message.='not present';          $exitcode=WARNING;  }
+		case 5 : { $message.='near end of life';     $exitcode=WARNING;  }
+		case 6 : { $message.='at end of life';       $exitcode=CRITICAL; }
+		case 7 : { $message.='unknown';              $exitcode=WARNING;  }
+		case 8 : { $message.='overcharged';          $exitcode=WARNING;  }
+		case 9 : { $message.='fully charged';        $exitcode=WARNING;  }
+	}
+	$message.='.';
+	$plugin->add_message($exitcode,$message);
+}
 
 sub checkDiskHealth{
 	my ($exitcode,$message);
