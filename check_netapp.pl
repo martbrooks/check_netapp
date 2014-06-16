@@ -82,14 +82,15 @@ $plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unl
 
 my ($warnneeded,$critneeded)=(0,0);
 sswitch($metric){
-        case 'aggregatebytes'   : { $warnneeded=1; $critneeded=1; }
-        case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
-        case 'treebytequotas'   : { $warnneeded=1; $critneeded=1; }
-        case 'treefilequotas'   : { $warnneeded=1; $critneeded=1; }
-        case 'userbytequotas'   : { $warnneeded=1; $critneeded=1; }
-        case 'userfilequotas'   : { $warnneeded=1; $critneeded=1; }
-        case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
-        case 'volumeinodes'     : { $warnneeded=1; $critneeded=1; }
+	case 'aggregatebytes'   : { $warnneeded=1; $critneeded=1; }
+	case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
+	case 'treebytequotas'   : { $warnneeded=1; $critneeded=1; }
+	case 'treefilequotas'   : { $warnneeded=1; $critneeded=1; }
+	case 'uptime        '   : { $warnneeded=1; $critneeded=1; }
+	case 'userbytequotas'   : { $warnneeded=1; $critneeded=1; }
+	case 'userfilequotas'   : { $warnneeded=1; $critneeded=1; }
+	case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
+	case 'volumeinodes'     : { $warnneeded=1; $critneeded=1; }
 }
 
 if ($warnneeded && !defined($warning)){
@@ -101,16 +102,16 @@ if ($critneeded && !defined($critical)){
 }
 
 sswitch($metric){
-        case 'aggregatebytes'  : { checkAggregateBytes()  }
-        case 'aggregateinodes' : { checkAggregateInodes() }
+	case 'aggregatebytes'  : { checkAggregateBytes()  }
+	case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
 	case 'uptime'          : { checkUptime()          }
 	case 'userbytequotas'  : { checkUserByteQuotas()  }
 	case 'userfilequotas'  : { checkUserFileQuotas()  }
-        case 'volumebytes'     : { checkVolumeBytes()     }
-        case 'volumeinodes'    : { checkVolumeInodes()    }
-        default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
+	case 'volumebytes'     : { checkVolumeBytes()     }
+	case 'volumeinodes'    : { checkVolumeInodes()    }
+	default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
 }
 
 my ($exitcode,$message)=$plugin->check_messages;
