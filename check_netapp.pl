@@ -35,6 +35,7 @@ my ( $opt, $usage ) = describe_options(
 			['cfpartnerstatus' => 'Check clustered failover partner status.'],
 			['diskhealth'      => 'Check physical disk health.'],
 			['fanhealth'       => 'Check fan health.'],
+			['globalstatus'    => 'Check global system status.'],
 			['nvrambattery'    => 'Check NVRAM battery status.'],
 			['overtemperature' => 'Check environment over temperature status.'],
 			['psuhealth'       => 'Check PSU health.'],
@@ -113,6 +114,7 @@ sswitch($metric){
 	case 'cfpartnerstatus' : { checkCFPartnerStatus() }
 	case 'diskhealth'      : { checkDiskHealth()      }
 	case 'fanhealth'       : { checkFanHealth()       }
+	case 'globalstatus'    : { checkGlobalStatus()    }
 	case 'nvrambattery'    : { checkNVRAMBattery()    }
 	case 'overtemperature' : { checkOverTemperature() }
 	case 'psuhealth'       : { checkPSUHealth()       }
@@ -128,6 +130,20 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkGlobalStatus{
+	my $message='Global status is okay.';
+	my $result = $session->get_request("$baseOID.1.2.2.4.0");
+	$plugin->nagios_exit(UNKNOWN, "Cannot read global status " . $session->error ) unless defined $result;
+	my $state=$result->{"$baseOID.1.2.2.4.0"};
+	if ($state!=3){
+		$result = $session->get_request("$baseOID.1.2.2.25.0");
+		$message=$result->{"$baseOID.1.2.2.25.0"};
+		$message=~s/\n+/ /g;
+	}
+	my $exitcode=$state==3?OK:CRITICAL;
+	$plugin->add_message($exitcode,$message);
+}
 
 sub checkCFPartnerStatus{
 	my %cfinfo=getClusteredFailoverInfo();
