@@ -553,7 +553,7 @@ sub getClusteredFailoverInfo{
 	my %cfinfo=();
 	for (my $oid=1; $oid<=8; $oid++){
 		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
-		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
+		$plugin->nagios_exit(UNKNOWN, "Cannot read CF OID $oid: " . $session->error ) unless defined $result;
 		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
 		nswitch ($oid){
 			case  1 : { $cfinfo{Settings}=$data;                }
@@ -573,7 +573,7 @@ sub getEnvironmentInfo{
 	my %einfo=();
 	for (my $oid=1; $oid<=5; $oid++){
 		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
-		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
+		$plugin->nagios_exit(UNKNOWN, "Cannot read environment OID $oid: " . $session->error ) unless defined $result;
 		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
 		nswitch ($oid){
 			case  1 : { $einfo{OverTemperature}=$data;  }
