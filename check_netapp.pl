@@ -35,6 +35,7 @@ my ( $opt, $usage ) = describe_options(
 			['diskhealth'      => 'Check physical disk health.'],
 			['fanhealth'       => 'Check fan health.'],
 			['nvrambattery'    => 'Check NVRAM battery status.'],
+			['overtemperature' => 'Check environment over temperature status.'],
 			['psuhealth'       => 'Check PSU health.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
@@ -111,6 +112,7 @@ sswitch($metric){
 	case 'diskhealth'      : { checkDiskHealth()      }
 	case 'fanhealth'       : { checkFanHealth()       }
 	case 'nvrambattery'    : { checkNVRAMBattery()    }
+	case 'overtemperature' : { checkOverTemperature() }
 	case 'psuhealth'       : { checkPSUHealth()       }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
@@ -134,6 +136,19 @@ sub checkFanHealth{
 sub checkPSUHealth{
 	my %einfo=getEnvironmentInfo();
 	my ($exitcode,$message)=($exitcode=$einfo{FailedPSUCount}==0?OK:CRITICAL,$einfo{FailedPSUMessage});
+	$plugin->add_message($exitcode,$message);
+}
+
+sub checkOverTemperature{
+	my %einfo=getEnvironmentInfo();
+	my $exitcode=$einfo{OverTemperature}==1?OK:CRITICAL;
+	my $message='Environment is ';
+	if ($exitcode==OK){
+		$message.='within ';
+	} else {
+		$message.='outside ';
+	}
+	$message.='temperature limits.';
 	$plugin->add_message($exitcode,$message);
 }
 
