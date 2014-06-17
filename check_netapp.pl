@@ -33,6 +33,7 @@ my ( $opt, $usage ) = describe_options(
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['diskhealth'      => 'Check physical disk health.'],
+			['failoverpartner' => 'Check cluster failover partner state.'],
 			['fanhealth'       => 'Check fan health.'],
 			['nvrambattery'    => 'Check NVRAM battery status.'],
 			['overtemperature' => 'Check environment over temperature status.'],
@@ -110,6 +111,7 @@ sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'diskhealth'      : { checkDiskHealth()      }
+	case 'failoverpartner' : { checkFailoverPartner() }
 	case 'fanhealth'       : { checkFanHealth()       }
 	case 'nvrambattery'    : { checkNVRAMBattery()    }
 	case 'overtemperature' : { checkOverTemperature() }
@@ -126,6 +128,16 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkFailoverPartner{
+	my %cfinfo=getClusteredFailoverInfo();
+	use Data::Dumper;
+	print Dumper %cfinfo;
+	if ($cfinfo{Settings}==1){
+		$plugin->add_message(OK,'Clustered failover not configured.');
+		return;
+	}
+}
 
 sub checkFanHealth{
 	my %einfo=getEnvironmentInfo();
@@ -585,7 +597,7 @@ sub getClusteredFailoverInfo{
 	for (my $oid=1; $oid<=8; $oid++){
 		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
 		$plugin->nagios_exit(UNKNOWN, "Cannot read CF OID $oid: " . $session->error ) unless defined $result;
-		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		my $data=$result->{"$baseOID.1.2.3.$oid.0"};
 		nswitch ($oid){
 			case  1 : { $cfinfo{Settings}=$data;                }
 			case  2 : { $cfinfo{State}=$data;                   }
