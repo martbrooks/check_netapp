@@ -526,7 +526,6 @@ sub quotaTypeLookup{
 	return $text;
 }
 
-
 sub getDiskHealthInfo{
 	my %dhinfo=();
 	for (my $oid=1; $oid<=11; $oid++){
@@ -548,4 +547,41 @@ sub getDiskHealthInfo{
 		}
 	}
 	return %dhinfo;
+}
+
+sub getClusteredFailoverInfo{
+	my %cfinfo=();
+	for (my $oid=1; $oid<=8; $oid++){
+		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
+		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
+		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		nswitch ($oid){
+			case  1 : { $cfinfo{Settings}=$data;                }
+			case  2 : { $cfinfo{State}=$data;                   }
+			case  3 : { $cfinfo{CannotTakeoverCause}=$data;     }
+			case  4 : { $cfinfo{PartnerStatus}=$data;           }
+			case  5 : { $cfinfo{PartnerLastStatusUpdate}=$data; }
+			case  6 : { $cfinfo{PartnerName}=$data;             }
+			case  7 : { $cfinfo{PartnerSysid}=$data;            }
+			case  8 : { $cfinfo{InterconnectStatus}=$data;      }
+		}
+	}
+	return %cfinfo;
+}
+
+sub getEnvironmentInfo{
+	my %einfo=();
+	for (my $oid=1; $oid<=5; $oid++){
+		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
+		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
+		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		nswitch ($oid){
+			case  1 : { $einfo{OverTemperature}=$data;  }
+			case  2 : { $einfo{FailedFanCount}=$data;   }
+			case  3 : { $einfo{FailedFanMessage}=$data; }
+			case  4 : { $einfo{FailedPSUCount}=$data;   }
+			case  5 : { $einfo{FailedPSUMessage}=$data; }
+		}
+	}
+	return %einfo;
 }
