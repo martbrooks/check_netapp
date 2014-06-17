@@ -223,7 +223,7 @@ sub checkUptime{
 	$rawuptime=~s/\.\d\d$//;
 	my $uptime=parse_duration($rawuptime);
 	$exitcode = $plugin->check_threshold(check => $uptime/3600, warning => $warning, critical => $critical);
-	$message="System uptime is " . duration($uptime) . '.';
+	$message="System uptime is " . duration($uptime,3) . '.';
 	$plugin->add_message($exitcode,$message);
 }
 
