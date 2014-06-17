@@ -32,8 +32,8 @@ my ( $opt, $usage ) = describe_options(
 		['metric|m=s' => hidden => { one_of =>[
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
+			['cfpartnerstatus' => 'Check clustered failover partner status.'],
 			['diskhealth'      => 'Check physical disk health.'],
-			['failoverpartner' => 'Check cluster failover partner state.'],
 			['fanhealth'       => 'Check fan health.'],
 			['nvrambattery'    => 'Check NVRAM battery status.'],
 			['overtemperature' => 'Check environment over temperature status.'],
@@ -110,8 +110,8 @@ if ($critneeded && !defined($critical)){
 sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
+	case 'cfpartnerstatus' : { checkCFPartnerStatus() }
 	case 'diskhealth'      : { checkDiskHealth()      }
-	case 'failoverpartner' : { checkFailoverPartner() }
 	case 'fanhealth'       : { checkFanHealth()       }
 	case 'nvrambattery'    : { checkNVRAMBattery()    }
 	case 'overtemperature' : { checkOverTemperature() }
@@ -129,14 +129,20 @@ sswitch($metric){
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
 
-sub checkFailoverPartner{
+sub checkCFPartnerStatus{
 	my %cfinfo=getClusteredFailoverInfo();
-	use Data::Dumper;
-	print Dumper %cfinfo;
 	if ($cfinfo{Settings}==1){
 		$plugin->add_message(OK,'Clustered failover not configured.');
 		return;
 	}
+	my $name=$cfinfo{PartnerName};
+	my $message="Clustered failover partner ($name) ";
+	case ($status){
+		case 1 : { $message='may be down.'; $exitcode=WARNING;  }
+		case 2 : { $message='is okay.';     $exitcode=OK;       }
+		case 3 : { $message='is dead.';     $exitcode=CRITICAL; }
+	}
+	$plugin->add_message($exitcode,$message);
 }
 
 sub checkFanHealth{
