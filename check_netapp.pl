@@ -33,7 +33,9 @@ my ( $opt, $usage ) = describe_options(
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['diskhealth'      => 'Check physical disk health.'],
+			['fanhealth'       => 'Check fan health.'],
 			['nvrambattery'    => 'Check NVRAM battery status.'],
+			['psuhealth'       => 'Check PSU health.'],
 			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
 			['uptime'          => 'Check system uptime.'],
@@ -107,7 +109,9 @@ sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'diskhealth'      : { checkDiskHealth()      }
+	case 'fanhealth'       : { checkFanHealth()       }
 	case 'nvrambattery'    : { checkNVRAMBattery()    }
+	case 'psuhealth'       : { checkPSUHealth()       }
 	case 'treebytequotas'  : { checkTreeByteQuotas()  }
 	case 'treefilequotas'  : { checkTreeFileQuotas()  }
 	case 'uptime'          : { checkUptime()          }
@@ -120,6 +124,18 @@ sswitch($metric){
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkFanHealth{
+	my %einfo=getEnvironmentInfo();
+	my ($exitcode,$message)=($exitcode=$einfo{FailedFanCount}==0?OK:CRITICAL,$einfo{FailedFanMessage});
+	$plugin->add_message($exitcode,$message);
+}
+
+sub checkPSUHealth{
+	my %einfo=getEnvironmentInfo();
+	my ($exitcode,$message)=($exitcode=$einfo{FailedPSUCount}==0?OK:CRITICAL,$einfo{FailedPSUMessage});
+	$plugin->add_message($exitcode,$message);
+}
 
 sub checkNVRAMBattery{
 	my $exitcode;
@@ -572,9 +588,9 @@ sub getClusteredFailoverInfo{
 sub getEnvironmentInfo{
 	my %einfo=();
 	for (my $oid=1; $oid<=5; $oid++){
-		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
+		my $result = $session->get_request("$baseOID.1.2.4.$oid.0");
 		$plugin->nagios_exit(UNKNOWN, "Cannot read environment OID $oid: " . $session->error ) unless defined $result;
-		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		my $data=$result->{"$baseOID.1.2.4.$oid.0"};
 		nswitch ($oid){
 			case  1 : { $einfo{OverTemperature}=$data;  }
 			case  2 : { $einfo{FailedFanCount}=$data;   }
