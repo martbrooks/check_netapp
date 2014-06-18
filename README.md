@@ -4,9 +4,9 @@ check_netapp
 A nagios plugin for Netapp filers, written in Perl.
 
 
-martin@molly:~/check_netapp$ ./check_netapp.pl
-Mandatory parameter 'hostname' missing in call to (eval)
-
+    martin@molly:~/check_netapp$ ./check_netapp.pl
+    Mandatory parameter 'hostname' missing in call to (eval)
+    
     check_netapp.pl (ver. 2014061600) [-Cchw] [long options...]
             Plugin parameters:
             -h --hostname        NetApp hostname or IP.
