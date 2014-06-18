@@ -169,9 +169,9 @@ sub checkCFPartnerStatus{
 	my $state=$cfinfo{State};
 	my $message="Clustered failover partner ($name) ";
 	nswitch($state){
-		case 1 : { $message='may be down.'; $exitcode=WARNING;  }
-		case 2 : { $message='is okay.';     $exitcode=OK;       }
-		case 3 : { $message='is dead.';     $exitcode=CRITICAL; }
+		case 1 : { $message.='may be down.'; $exitcode=WARNING;  }
+		case 2 : { $message.='is okay.';     $exitcode=OK;       }
+		case 3 : { $message.='is dead.';     $exitcode=CRITICAL; }
 	}
 	$plugin->add_message($exitcode,$message);
 }
