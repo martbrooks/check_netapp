@@ -32,6 +32,7 @@ my ( $opt, $usage ) = describe_options(
 		['metric|m=s' => hidden => { one_of =>[
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
+			['autosupport'     => 'Check autosupport status.'],
 			['cfpartnerstatus' => 'Check clustered failover partner status.'],
 			['diskhealth'      => 'Check physical disk health.'],
 			['fanhealth'       => 'Check fan health.'],
@@ -111,6 +112,7 @@ if ($critneeded && !defined($critical)){
 sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
+	case 'autosupport'     : { checkAutosupport()     }
 	case 'cfpartnerstatus' : { checkCFPartnerStatus() }
 	case 'diskhealth'      : { checkDiskHealth()      }
 	case 'fanhealth'       : { checkFanHealth()       }
@@ -131,14 +133,18 @@ sswitch($metric){
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
 
-sub checkAutoSupport{
+sub checkAutosupport{
 	my $message='Autosupport status is okay.';
 	my $state=snmpGetRequest("$baseOID.1.2.7.1.0","autosupport status");
+	my $success=snmpGetRequest("$baseOID.1.2.7.3.0","autosupport successful sends");
+	my $failed=snmpGetRequest("$baseOID.1.2.7.4.0","autosupport failed sends");
+	my $total=$success+$failed;
 	if ($state!=1){
 		$message=snmpGetRequest("$baseOID.1.2.7.2.0","autosupport status message");
 		$message=~s/\n+/ /g;
 	}
-	my $exitcode=$state==3?OK:CRITICAL;
+	my $exitcode=$state==1?OK:CRITICAL;
+	$message.=" $success/$total successful autosupport sends.";
 	$plugin->add_message($exitcode,$message);
 }
 
