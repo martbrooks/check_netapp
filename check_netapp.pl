@@ -131,14 +131,22 @@ sswitch($metric){
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
 
+sub checkAutoSupport{
+	my $message='Autosupport status is okay.';
+	my $state=snmpGetRequest("$baseOID.1.2.7.1.0","autosupport status");
+	if ($state!=1){
+		$message=snmpGetRequest("$baseOID.1.2.7.2.0","autosupport status message");
+		$message=~s/\n+/ /g;
+	}
+	my $exitcode=$state==3?OK:CRITICAL;
+	$plugin->add_message($exitcode,$message);
+}
+
 sub checkGlobalStatus{
 	my $message='Global status is okay.';
-	my $result = $session->get_request("$baseOID.1.2.2.4.0");
-	$plugin->nagios_exit(UNKNOWN, "Cannot read global status " . $session->error ) unless defined $result;
-	my $state=$result->{"$baseOID.1.2.2.4.0"};
+	my $state=snmpGetRequest("$baseOID.1.2.2.4.0","global status");
 	if ($state!=3){
-		$result = $session->get_request("$baseOID.1.2.2.25.0");
-		$message=$result->{"$baseOID.1.2.2.25.0"};
+		$message=snmpGetRequest("$baseOID.1.2.2.25.0","global status message");
 		$message=~s/\n+/ /g;
 	}
 	my $exitcode=$state==3?OK:CRITICAL;
@@ -189,9 +197,7 @@ sub checkOverTemperature{
 
 sub checkNVRAMBattery{
 	my $exitcode;
-	my $result = $session->get_request("$baseOID.1.2.5.1.0");
-	$plugin->nagios_exit(UNKNOWN, "Cannot read NVRAM battery status " . $session->error ) unless defined $result;
-	my $data=$result->{"$baseOID.1.2.5.1.0"};
+	my $data=snmpGetRequest("$baseOID.1.2.5.1.0","NVRAM battery status");
 	my $message='NVRAM battery is ';
 	nswitch ($data){
 		case 1 : { $message.='OK';                   $exitcode=OK;       }
@@ -240,9 +246,7 @@ sub checkDiskHealth{
 
 sub checkUptime{
         my ($exitcode,$message);
-	my $result = $session->get_request("$baseOID.1.2.1.1.0");
-	$plugin->nagios_exit(UNKNOWN, "Cannot check uptime: " . $session->error ) unless defined $result;
-	my $rawuptime=$result->{"$baseOID.1.2.1.1.0"};
+	my $rawuptime=snmpGetRequest("$baseOID.1.2.1.1.0","uptime");
 	$rawuptime=~s/\.\d\d$//;
 	my $uptime=parse_duration($rawuptime);
 	$exitcode = $plugin->check_threshold(check => $uptime/3600, warning => $warning, critical => $critical);
@@ -595,9 +599,7 @@ sub quotaTypeLookup{
 sub getDiskHealthInfo{
 	my %dhinfo=();
 	for (my $oid=1; $oid<=11; $oid++){
-		my $result = $session->get_request("$baseOID.1.6.4.$oid.0");
-		$plugin->nagios_exit(UNKNOWN, "Cannot read disk OID $oid: " . $session->error ) unless defined $result;
-		my $data=$result->{"$baseOID.1.6.4.$oid.0"};
+		my $data=snmpGetRequest("$baseOID.1.6.4.$oid.0","disk OID $oid");
 		nswitch ($oid){
 			case  1 : { $dhinfo{Total}=$data;                }
 			case  2 : { $dhinfo{Active}=$data;               }
@@ -618,9 +620,7 @@ sub getDiskHealthInfo{
 sub getClusteredFailoverInfo{
 	my %cfinfo=();
 	for (my $oid=1; $oid<=8; $oid++){
-		my $result = $session->get_request("$baseOID.1.2.3.$oid.0");
-		$plugin->nagios_exit(UNKNOWN, "Cannot read CF OID $oid: " . $session->error ) unless defined $result;
-		my $data=$result->{"$baseOID.1.2.3.$oid.0"};
+		my $data=snmpGetRequest("$baseOID.1.2.3.$oid.0","CF OID $oid");
 		nswitch ($oid){
 			case  1 : { $cfinfo{Settings}=$data;                }
 			case  2 : { $cfinfo{State}=$data;                   }
@@ -638,9 +638,7 @@ sub getClusteredFailoverInfo{
 sub getEnvironmentInfo{
 	my %einfo=();
 	for (my $oid=1; $oid<=5; $oid++){
-		my $result = $session->get_request("$baseOID.1.2.4.$oid.0");
-		$plugin->nagios_exit(UNKNOWN, "Cannot read environment OID $oid: " . $session->error ) unless defined $result;
-		my $data=$result->{"$baseOID.1.2.4.$oid.0"};
+		my $data=snmpGetRequest("$baseOID.1.2.4.$oid.0","environment OID $oid");
 		nswitch ($oid){
 			case  1 : { $einfo{OverTemperature}=$data;  }
 			case  2 : { $einfo{FailedFanCount}=$data;   }
@@ -650,4 +648,12 @@ sub getEnvironmentInfo{
 		}
 	}
 	return %einfo;
+}
+
+sub snmpGetRequest{
+	my ($oid,$itemdesc)=@_;
+	my $result = $session->get_request("$oid");
+	$plugin->nagios_exit(UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
+	my $data=$result->{"$oid"};
+	return $data;
 }
