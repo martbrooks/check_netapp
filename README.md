@@ -44,4 +44,5 @@ Credits
 =======
 
 Thanks to Hitachi Data Systems (UK) Ltd, for allowing me to open this plugin up
-to the community.  An errors or ommisions are entirely the fault of the author.
+to the community.  Any errors or ommissions are entirely the fault of the
+author.
