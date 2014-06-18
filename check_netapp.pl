@@ -454,8 +454,7 @@ sub checkUserFileQuotas{
 
 
 sub getQuotaInfo{
-        my $result = $session->get_table("$baseOID.1.4.6");
-        $plugin->nagios_exit(UNKNOWN, "Cannot read quota information: " . $session->error ) unless defined $result;
+	my $result=snmpGetTable("$baseOID.1.4.6","quota information");
 	my %quotainfo=();
 	foreach my $line (keys %{$result}){
 		my @data=split/\./,$line;
@@ -498,8 +497,7 @@ sub getQuotaInfo{
 }
 
 sub getDiskSpaceInfo{
-        my $result = $session->get_table("$baseOID.1.5.4");
-        $plugin->nagios_exit(UNKNOWN, "Cannot read disk usage information: " . $session->error ) unless defined $result;
+	my $result=snmpGetTable("$baseOID.1.5.4","disk usage information");
 	my %dfinfo=();
 	foreach my $line (keys %{$result}){
 		my @data=split/\./,$line;
@@ -658,8 +656,15 @@ sub getEnvironmentInfo{
 
 sub snmpGetRequest{
 	my ($oid,$itemdesc)=@_;
-	my $result = $session->get_request("$oid");
+	my $result=$session->get_request("$oid");
 	$plugin->nagios_exit(UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
 	my $data=$result->{"$oid"};
 	return $data;
+}
+
+sub snmpGetTable{
+	my ($oid,$itemdesc)=@_;
+        my $result=$session->get_table("$oid");
+        $plugin->nagios_exit(UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
+	return $result;
 }
