@@ -15,7 +15,7 @@ use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
-my $VERSION='2014061600';
+my $VERSION='2014061900';
 
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
@@ -33,7 +33,8 @@ my ( $opt, $usage ) = describe_options(
 			['aggregatebytes'  => 'Check aggregate byte usage.'],
 			['aggregateinodes' => 'Check aggregate inode usage.'],
 			['autosupport'     => 'Check autosupport status.'],
-			['cfpartnerstatus' => 'Check clustered failover partner status.'],
+			['cfinterconnect'  => 'Check clustered failover interconnect status.'],
+			['cfpartner'       => 'Check clustered failover partner status.'],
 			['diskhealth'      => 'Check physical disk health.'],
 			['fanhealth'       => 'Check fan health.'],
 			['globalstatus'    => 'Check global system status.'],
@@ -113,7 +114,8 @@ sswitch($metric){
 	case 'aggregatebytes'  : { checkAggregateBytes()  }
 	case 'aggregateinodes' : { checkAggregateInodes() }
 	case 'autosupport'     : { checkAutosupport()     }
-	case 'cfpartnerstatus' : { checkCFPartnerStatus() }
+	case 'cfinterconnect'  : { checkCFInterconnect( ) }
+	case 'cfpartner'       : { checkCFPartner()       }
 	case 'diskhealth'      : { checkDiskHealth()      }
 	case 'fanhealth'       : { checkFanHealth()       }
 	case 'globalstatus'    : { checkGlobalStatus()    }
@@ -159,7 +161,20 @@ sub checkGlobalStatus{
 	$plugin->add_message($exitcode,$message);
 }
 
-sub checkCFPartnerStatus{
+sub checkCFInterconnect{
+	my %cfinfo=getClusteredFailoverInfo();
+	my $state=$cfinfo{InterconnectStatus};
+	my $message='Interconnect is ';
+	nswitch($state){
+		case 1 : { $message.='not present.';      $exitcode=OK;       }
+		case 2 : { $message.='down.';             $exitcode=CRITICAL; }
+		case 3 : { $message.='partially failed.'; $exitcode=WARNING;  }
+		case 4 : { $message.='up.';               $exitcode=OK;       }
+	}
+	$plugin->add_message($exitcode,$message);
+}
+
+sub checkCFPartner{
 	my %cfinfo=getClusteredFailoverInfo();
 	if ($cfinfo{Settings}==1){
 		$plugin->add_message(OK,'Clustered failover not configured.');
