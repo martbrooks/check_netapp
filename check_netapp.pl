@@ -94,7 +94,7 @@ sswitch($metric){
 	case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
 	case 'treebytequotas'   : { $warnneeded=1; $critneeded=1; }
 	case 'treefilequotas'   : { $warnneeded=1; $critneeded=1; }
-	case 'uptime        '   : { $warnneeded=1; $critneeded=1; }
+	case 'uptime'           : { $warnneeded=1; $critneeded=1; }
 	case 'userbytequotas'   : { $warnneeded=1; $critneeded=1; }
 	case 'userfilequotas'   : { $warnneeded=1; $critneeded=1; }
 	case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
