@@ -253,9 +253,8 @@ sub checkDiskHealth{
 sub checkUptime{
         my ($exitcode,$message);
 	my $rawuptime=snmpGetRequest("$baseOID.1.2.1.1.0","uptime");
-	warn $rawuptime;
-	$rawuptime=~s/\.\d\d$//;
-	warn $rawuptime;
+	$rawuptime=~s/\.\d\d$/ seconds/;
+	$rawuptime=~s/:/ minutes, /;
 	my $uptime=parse_duration($rawuptime);
 	$exitcode = $plugin->check_threshold(check => $uptime/3600, warning => $warning, critical => $critical);
 	$message="System uptime is " . duration($uptime,3) . '.';
