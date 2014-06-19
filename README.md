@@ -18,21 +18,21 @@ A nagios plugin for Netapp filers, written in Perl.
             -c --critical        Sets the critical threshold for the check.
                                
             Available Metrics:
-            --aggregatebytes     Check aggregate byte usage.
             --aggregateinodes    Check aggregate inode usage.
             --autosupport        Check autosupport status.
-            --cfpartnerstatus    Check clustered failover partner status.
+            --cfinterconnect     Check clustered failover interconnect status.
+            --cfpartner          Check clustered failover partner status.
             --diskhealth         Check physical disk health.
             --fanhealth          Check fan health.
             --globalstatus       Check global system status.
             --nvrambattery       Check NVRAM battery status.
             --overtemperature    Check environment over temperature status.
             --psuhealth          Check PSU health.
-            --treefilequotas     Check tree file quotas.
             --treebytequotas     Check tree byte quotas.
+            --treefilequotas     Check tree file quotas.
             --uptime             Check system uptime.
-            --userfilequotas     Check user file quotas.
             --userbytequotas     Check user byte quotas.
+            --userfilequotas     Check user file quotas.
             --volumebytes        Check volume byte usage.
             --volumeinodes       Check volume inode usage.
                                
