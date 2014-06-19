@@ -20,7 +20,7 @@ my $VERSION='2014061600';
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
 	['Plugin parameters:'],
-		['hostname|h=s'  => 'NetApp hostname or IP.',   { required => 1 } ],
+		['hostname|h=s'  => 'NetApp hostname or IP.', { required => 1 } ],
 		['community|C=s' => 'SNMP community string.', { required => 1, default => 'public' }],
 		['help'          => 'Print help and usage.' ],
 	[],
@@ -165,9 +165,10 @@ sub checkCFPartnerStatus{
 		$plugin->add_message(OK,'Clustered failover not configured.');
 		return;
 	}
-	my $name=$cfinfo{PartnerName};
+	my $name=$cfinfo{PartnerName} || '';
 	my $state=$cfinfo{State};
-	my $message="Clustered failover partner ($name) ";
+	my $message="Clustered failover partner ";
+       	if ($name ne ''){$message.="($name) ";
 	nswitch($state){
 		case 1 : { $message.='may be down.'; $exitcode=WARNING;  }
 		case 2 : { $message.='is okay.';     $exitcode=OK;       }
