@@ -168,7 +168,7 @@ sub checkCFPartnerStatus{
 	my $name=$cfinfo{PartnerName} || '';
 	my $state=$cfinfo{State};
 	my $message="Clustered failover partner ";
-       	if ($name ne ''){$message.="($name) ";
+       	if ($name ne ''){$message.="($name) ";}
 	nswitch($state){
 		case 1 : { $message.='may be down.'; $exitcode=WARNING;  }
 		case 2 : { $message.='is okay.';     $exitcode=OK;       }
