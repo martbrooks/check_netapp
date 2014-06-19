@@ -40,11 +40,11 @@ my ( $opt, $usage ) = describe_options(
 			['nvrambattery'    => 'Check NVRAM battery status.'],
 			['overtemperature' => 'Check environment over temperature status.'],
 			['psuhealth'       => 'Check PSU health.'],
-			['treefilequotas'  => 'Check tree file quotas.'],
 			['treebytequotas'  => 'Check tree byte quotas.'],
+			['treefilequotas'  => 'Check tree file quotas.'],
 			['uptime'          => 'Check system uptime.'],
-			['userfilequotas'  => 'Check user file quotas.'],
 			['userbytequotas'  => 'Check user byte quotas.'],
+			['userfilequotas'  => 'Check user file quotas.'],
 			['volumebytes'     => 'Check volume byte usage.'],
 			['volumeinodes'    => 'Check volume inode usage.'],
 	]}],
@@ -253,7 +253,9 @@ sub checkDiskHealth{
 sub checkUptime{
         my ($exitcode,$message);
 	my $rawuptime=snmpGetRequest("$baseOID.1.2.1.1.0","uptime");
+	warn $rawuptime;
 	$rawuptime=~s/\.\d\d$//;
+	warn $rawuptime;
 	my $uptime=parse_duration($rawuptime);
 	$exitcode = $plugin->check_threshold(check => $uptime/3600, warning => $warning, critical => $critical);
 	$message="System uptime is " . duration($uptime,3) . '.';
