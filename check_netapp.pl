@@ -671,6 +671,83 @@ sub getEnvironmentInfo{
 	return %einfo;
 }
 
+sub getEnclosureInfo{
+	my %encinfo=();
+	my $result=snmpGetTable("$baseOID.1.21.1.2","enclosure info");
+	foreach my $line (keys %{$result}){
+		my @data=split/\./,$line;
+		my $item=$data[12];
+		my $enc=$data[13];
+		my $value=$result->{$line};
+		nswitch ($item){
+			case  2 : { $encinfo{$enc}{ContactState}=$value; }
+			case  3 : { $encinfo{$enc}{ChannelShelfAddr}=$value; }
+			case  4 : { $encinfo{$enc}{ProductLogicalID}=$value; }
+			case  5 : { $encinfo{$enc}{ProductID}=$value; }
+			case  6 : { $encinfo{$enc}{ProductVendor}=$value; }
+			case  7 : { $encinfo{$enc}{ProductModel}=$value; }
+			case  8 : { $encinfo{$enc}{ProductRevision}=$value; }
+			case  9 : { $encinfo{$enc}{ProductSerialNo}=$value; }
+			case 10 : { $encinfo{$enc}{NumberDiskBays}=$value; }
+			case 11 : { $encinfo{$enc}{DisksPresent}=$value; }
+			case 12 : { $encinfo{$enc}{PowerSuppliesMaximum}=$value; }
+			case 13 : { $encinfo{$enc}{PowerSuppliesPresent}=$value; }
+			case 14 : { $encinfo{$enc}{PowerSuppliesSerialNos}=$value; }
+			case 15 : { $encinfo{$enc}{PowerSuppliesFailed}=$value; }
+			case 16 : { $encinfo{$enc}{FansMaximum}=$value; }
+			case 17 : { $encinfo{$enc}{FansPresent}=$value; }
+			case 18 : { $encinfo{$enc}{FansFailed}=$value; }
+			case 19 : { $encinfo{$enc}{TempSensorsMaximum}=$value; }
+			case 20 : { $encinfo{$enc}{TempSensorsPresent}=$value; }
+			case 21 : { $encinfo{$enc}{TempSensorsOverTempFail}=$value; }
+			case 22 : { $encinfo{$enc}{TempSensorsOverTempWarn}=$value; }
+			case 23 : { $encinfo{$enc}{TempSensorsUnderTempFail}=$value; }
+			case 24 : { $encinfo{$enc}{TempSensorsUnderTempWarn}=$value; }
+			case 25 : { $encinfo{$enc}{TempSensorsCurrentTemp}=$value; }
+			case 26 : { $encinfo{$enc}{TempSensorsOverTempFailThr}=$value; }
+			case 27 : { $encinfo{$enc}{TempSensorsOverTempWarnThr}=$value; }
+			case 28 : { $encinfo{$enc}{TempSensorsUnderTempFailThr}=$value; }
+			case 29 : { $encinfo{$enc}{TempSensorsUnderTempWarnThr}=$value; }
+			case 30 : { $encinfo{$enc}{ElectronicsMaximum}=$value; }
+			case 31 : { $encinfo{$enc}{ElectronicsPresent}=$value; }
+			case 32 : { $encinfo{$enc}{ElectronicsSerialNos}=$value; }
+			case 33 : { $encinfo{$enc}{ElectronicsFailed}=$value; }
+			case 34 : { $encinfo{$enc}{VoltSensorsMaximum}=$value; }
+			case 35 : { $encinfo{$enc}{VoltSensorsPresent}=$value; }
+			case 36 : { $encinfo{$enc}{VoltSensorsOverVoltFail}=$value; }
+			case 37 : { $encinfo{$enc}{VoltSensorsOverVoltWarn}=$value; }
+			case 38 : { $encinfo{$enc}{VoltSensorsUnderVoltFail}=$value; }
+			case 39 : { $encinfo{$enc}{VoltSensorsUnderVoltWarn}=$value; }
+			case 40 : { $encinfo{$enc}{VoltSensorsOverVoltFailThr}=$value; }
+			case 41 : { $encinfo{$enc}{VoltSensorsOverVoltWarnThr}=$value; }
+			case 42 : { $encinfo{$enc}{VoltSensorsUnderVoltFailThr}=$value; }
+			case 43 : { $encinfo{$enc}{VoltSensorsUnderVoltWarnThr}=$value; }
+			case 44 : { $encinfo{$enc}{VoltSensorsCurrentVolt}=$value; }
+			case 45 : { $encinfo{$enc}{CurSensorsMaximum}=$value; }
+			case 46 : { $encinfo{$enc}{CurSensorsPresent}=$value; }
+			case 47 : { $encinfo{$enc}{CurSensorsOverCurFail}=$value; }
+			case 48 : { $encinfo{$enc}{CurSensorsOverCurWarn}=$value; }
+			case 49 : { $encinfo{$enc}{CurSensorsOverCurFailThr}=$value; }
+			case 50 : { $encinfo{$enc}{CurSensorsOverCurWarnThr}=$value; }
+			case 51 : { $encinfo{$enc}{CurSensorsCurrentCur}=$value; }
+			case 52 : { $encinfo{$enc}{SASConnectMaximum}=$value; }
+			case 53 : { $encinfo{$enc}{SASConnectPresent}=$value; }
+			case 54 : { $encinfo{$enc}{SASConnectVendor}=$value; }
+			case 55 : { $encinfo{$enc}{SASConnectType}=$value; }
+			case 56 : { $encinfo{$enc}{SASConnectCableLen}=$value; }
+			case 57 : { $encinfo{$enc}{SASConnectCableTech}=$value; }
+			case 58 : { $encinfo{$enc}{SASConnectCableEnd}=$value; }
+			case 59 : { $encinfo{$enc}{SASConnectSerialNos}=$value; }
+			case 60 : { $encinfo{$enc}{SASConnectPartNos}=$value; }
+			case 61 : { $encinfo{$enc}{PowerSuppliesPartNos}=$value; }
+			case 62 : { $encinfo{$enc}{FansSpeed}=$value; }
+			case 63 : { $encinfo{$enc}{ElectronicsPartNos}=$value; }
+			case 64 : { $encinfo{$enc}{ElectronicsCPLDVers}=$value; }
+		}
+	}
+	return %encinfo;
+}
+
 sub snmpGetRequest{
 	my ($oid,$itemdesc)=@_;
 	my $result=$session->get_request("$oid");
