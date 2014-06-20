@@ -15,7 +15,7 @@ use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
-my $VERSION='2014061900';
+my $VERSION='2014062000';
 
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
@@ -139,9 +139,25 @@ $plugin->nagios_exit($exitcode,$message);
 
 sub checkEncPSUHealth{
 	my %encinfo=getEnclosureInfo();
-	use Data::Dumper;
-	print Dumper %encinfo;
-	die;
+	my ($errorcount,$enccount,$totpresent)=(0,0,0);
+	foreach my $this (keys %encinfo){
+		$enccount++;
+		my $present=$encinfo{$this}{PowerSuppliesPresentCount};
+		my $failed=$encinfo{$this}{PowerSuppliesFailedCount};
+		$totpresent+=$present;
+		if ($failed!=0){
+			my $message="Enclosure $this has $failed failed power suppl";
+			$message.=$failed==1?'y':'ies';
+			$message.='.';
+			$plugin->add_message(CRITICAL,$message);
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$enccount enclosures, $totpresent PSUs present and OK.");
+	}
+
 }
 
 sub checkAutosupport{
@@ -754,6 +770,20 @@ sub getEnclosureInfo{
 			case 64 : { $encinfo{$enc}{ElectronicsCPLDVers}=$value; }
 		}
 	}
+
+	my $tmps;
+	my @tmpa;
+	foreach my $this (keys %encinfo){
+		$tmps=$encinfo{$this}{PowerSuppliesPresent};
+		$tmps=~s/\s+//;
+		@tmpa=split/,/,$tmps;
+		$encinfo{$this}{PowerSuppliesPresentCount}=scalar @tmpa;
+		$tmps=$encinfo{$this}{PowerSuppliesFailed};
+		$tmps=~s/\s+//;
+		@tmpa=split/,/,$tmps;
+		$encinfo{$this}{PowerSuppliesFailedCount}=scalar @tmpa;
+	}
+
 	return %encinfo;
 }
 
@@ -770,4 +800,4 @@ sub snmpGetTable{
         my $result=$session->get_table("$oid");
         $plugin->nagios_exit(UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
 	return $result;
-}
+} 
