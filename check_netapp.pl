@@ -30,24 +30,25 @@ my ( $opt, $usage ) = describe_options(
 	[],
 	['Available Metrics:'],
 		['metric|m=s' => hidden => { one_of =>[
-			['aggregatebytes'  => 'Check aggregate byte usage.'],
-			['aggregateinodes' => 'Check aggregate inode usage.'],
-			['autosupport'     => 'Check autosupport status.'],
-			['cfinterconnect'  => 'Check clustered failover interconnect status.'],
-			['cfpartner'       => 'Check clustered failover partner status.'],
-			['diskhealth'      => 'Check physical disk health.'],
-			['fanhealth'       => 'Check fan health.'],
-			['globalstatus'    => 'Check global system status.'],
-			['nvrambattery'    => 'Check NVRAM battery status.'],
-			['overtemperature' => 'Check environment over temperature status.'],
-			['psuhealth'       => 'Check PSU health.'],
-			['treebytequotas'  => 'Check tree byte quotas.'],
-			['treefilequotas'  => 'Check tree file quotas.'],
-			['uptime'          => 'Check system uptime.'],
-			['userbytequotas'  => 'Check user byte quotas.'],
-			['userfilequotas'  => 'Check user file quotas.'],
-			['volumebytes'     => 'Check volume byte usage.'],
-			['volumeinodes'    => 'Check volume inode usage.'],
+			['aggregatebytes'     => 'Check aggregate byte usage.'],
+			['aggregateinodes'    => 'Check aggregate inode usage.'],
+			['autosupport'        => 'Check autosupport status.'],
+			['cfinterconnect'     => 'Check clustered failover interconnect status.'],
+			['cfpartner'          => 'Check clustered failover partner status.'],
+			['diskhealth'         => 'Check physical disk health.'],
+			['enclosurepsuhealth' => 'Check enclosure PSU health.'],
+			['fanhealth'          => 'Check fan health.'],
+			['globalstatus'       => 'Check global system status.'],
+			['nvrambattery'       => 'Check NVRAM battery status.'],
+			['overtemperature'    => 'Check environment over temperature status.'],
+			['psuhealth'          => 'Check PSU health.'],
+			['treebytequotas'     => 'Check tree byte quotas.'],
+			['treefilequotas'     => 'Check tree file quotas.'],
+			['uptime'             => 'Check system uptime.'],
+			['userbytequotas'     => 'Check user byte quotas.'],
+			['userfilequotas'     => 'Check user file quotas.'],
+			['volumebytes'        => 'Check volume byte usage.'],
+			['volumeinodes'       => 'Check volume inode usage.'],
 	]}],
 	[],
 	['Example usage:'],
@@ -111,29 +112,37 @@ if ($critneeded && !defined($critical)){
 }
 
 sswitch($metric){
-	case 'aggregatebytes'  : { checkAggregateBytes()  }
-	case 'aggregateinodes' : { checkAggregateInodes() }
-	case 'autosupport'     : { checkAutosupport()     }
-	case 'cfinterconnect'  : { checkCFInterconnect( ) }
-	case 'cfpartner'       : { checkCFPartner()       }
-	case 'diskhealth'      : { checkDiskHealth()      }
-	case 'fanhealth'       : { checkFanHealth()       }
-	case 'globalstatus'    : { checkGlobalStatus()    }
-	case 'nvrambattery'    : { checkNVRAMBattery()    }
-	case 'overtemperature' : { checkOverTemperature() }
-	case 'psuhealth'       : { checkPSUHealth()       }
-	case 'treebytequotas'  : { checkTreeByteQuotas()  }
-	case 'treefilequotas'  : { checkTreeFileQuotas()  }
-	case 'uptime'          : { checkUptime()          }
-	case 'userbytequotas'  : { checkUserByteQuotas()  }
-	case 'userfilequotas'  : { checkUserFileQuotas()  }
-	case 'volumebytes'     : { checkVolumeBytes()     }
-	case 'volumeinodes'    : { checkVolumeInodes()    }
+	case 'aggregatebytes'     : { checkAggregateBytes()  }
+	case 'aggregateinodes'    : { checkAggregateInodes() }
+	case 'autosupport'        : { checkAutosupport()     }
+	case 'cfinterconnect'     : { checkCFInterconnect( ) }
+	case 'cfpartner'          : { checkCFPartner()       }
+	case 'diskhealth'         : { checkDiskHealth()      }
+	case 'enclosurepsuhealth' : { checkEncPSUHealth()    }
+	case 'fanhealth'          : { checkFanHealth()       }
+	case 'globalstatus'       : { checkGlobalStatus()    }
+	case 'nvrambattery'       : { checkNVRAMBattery()    }
+	case 'overtemperature'    : { checkOverTemperature() }
+	case 'psuhealth'          : { checkPSUHealth()       }
+	case 'treebytequotas'     : { checkTreeByteQuotas()  }
+	case 'treefilequotas'     : { checkTreeFileQuotas()  }
+	case 'uptime'             : { checkUptime()          }
+	case 'userbytequotas'     : { checkUserByteQuotas()  }
+	case 'userfilequotas'     : { checkUserFileQuotas()  }
+	case 'volumebytes'        : { checkVolumeBytes()     }
+	case 'volumeinodes'       : { checkVolumeInodes()    }
 	default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
 }
 
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
+
+sub checkEncPSUHealth{
+	my %encinfo=getEnclosureInfo();
+	use Data::Dumper;
+	print Dumper %encinfo;
+	die;
+}
 
 sub checkAutosupport{
 	my $message='Autosupport status is okay.';
