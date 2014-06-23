@@ -133,7 +133,7 @@ sswitch($metric){
 	case 'userfilequotas'     : { checkUserFileQuotas()  }
 	case 'volumebytes'        : { checkVolumeBytes()     }
 	case 'volumeinodes'       : { checkVolumeInodes()    }
-	default                : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
+	default                   : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
 }
 
 my ($exitcode,$message)=$plugin->check_messages;
