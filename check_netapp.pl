@@ -15,7 +15,7 @@ use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
-my $VERSION='2014062000';
+my $VERSION='2014062300';
 
 my ( $opt, $usage ) = describe_options(
 	"%c (ver. $VERSION) %o",
@@ -398,7 +398,10 @@ sub checkVolumeBytes{
 	}
 
 	if ($errorcount == 0){
-		$plugin->add_message(OK,"$volcount volumes OK.");
+		my $message="$volcount volume";
+		$message.=$volcount!=0?' is OK':'s are OK';
+		$message.='.';
+		$plugin->add_message(OK,$message);
 	}
 }
 
@@ -420,7 +423,10 @@ sub checkVolumeInodes{
 	}
 
 	if ($errorcount == 0){
-		$plugin->add_message(OK,"$volcount volumes OK.");
+		my $message="$volcount volume";
+		$message.=$volcount!=0?' is OK':'s are OK';
+		$message.='.';
+		$plugin->add_message(OK,$message);
 	}
 }
 
