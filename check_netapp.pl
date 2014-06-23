@@ -341,13 +341,16 @@ sub checkAggregateBytes{
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedbytes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"Aggregate \'$name\' byte use is $hused/$htotal ($usedbytes%).");
+			$plugin->add_message($exitcode,"Aggregate \'$name\': $hused/$htotal ($usedbytes%).");
 			$errorcount++;
 		}
 	}
 
 	if ($errorcount == 0){
-		$plugin->add_message(OK,"$aggcount aggregates OK.");
+		my $message="$aggcount aggregate";
+		$message.=$aggcount!=0?' is OK':'s are OK';
+		$message.='.';
+		$plugin->add_message(OK,$message);
 	}
 }
 
@@ -363,13 +366,16 @@ sub checkAggregateInodes{
 		$aggcount++;
 		$exitcode = $plugin->check_threshold(check => $usedinodes, warning => $warning, critical => $critical);
 		if ($exitcode != OK){
-			$plugin->add_message($exitcode,"Aggregate \'$name\' inode use is $used/$total ($usedinodes%).");
+			$plugin->add_message($exitcode,"Aggregate \'$name\': $used/$total ($usedinodes%).");
 			$errorcount++;
 		}
 	}
 
 	if ($errorcount == 0){
-		$plugin->add_message(OK,"$aggcount aggregates OK.");
+		my $message="$aggcount aggregate";
+		$message.=$aggcount!=0?' is OK':'s are OK';
+		$message.='.';
+		$plugin->add_message(OK,$message);
 	}
 }
 
