@@ -36,6 +36,7 @@ my ( $opt, $usage ) = describe_options(
 			['cfinterconnect'     => 'Check clustered failover interconnect status.'],
 			['cfpartner'          => 'Check clustered failover partner status.'],
 			['diskhealth'         => 'Check physical disk health.'],
+			['enclosurefanhealth' => 'Check enclosure fan health.'],
 			['enclosurepsuhealth' => 'Check enclosure PSU health.'],
 			['fanhealth'          => 'Check fan health.'],
 			['globalstatus'       => 'Check global system status.'],
@@ -118,6 +119,7 @@ sswitch($metric){
 	case 'cfinterconnect'     : { checkCFInterconnect( ) }
 	case 'cfpartner'          : { checkCFPartner()       }
 	case 'diskhealth'         : { checkDiskHealth()      }
+	case 'enclosurefanhealth' : { checkEncFanHealth()    }
 	case 'enclosurepsuhealth' : { checkEncPSUHealth()    }
 	case 'fanhealth'          : { checkFanHealth()       }
 	case 'globalstatus'       : { checkGlobalStatus()    }
@@ -137,11 +139,36 @@ sswitch($metric){
 my ($exitcode,$message)=$plugin->check_messages;
 $plugin->nagios_exit($exitcode,$message);
 
-sub checkEncPSUHealth{
+sub checkEncFanHealth{
+	my $enccount=enclosuresPresent();
+	return if $enccount==0;
 	my %encinfo=getEnclosureInfo();
-	my ($errorcount,$enccount,$totpresent)=(0,0,0);
+	my ($errorcount,$totpresent)=(0,0);
 	foreach my $this (keys %encinfo){
-		$enccount++;
+		my $present=$encinfo{$this}{FansPresentCount};
+		my $failed=$encinfo{$this}{FansFailedCount};
+		$totpresent+=$present;
+		if ($failed!=0){
+			my $message="Enclosure $this has $failed failed fan";
+			$message.=$failed!=1?'s':'';
+			$message.='.';
+			$plugin->add_message(CRITICAL,$message);
+			$errorcount++;
+		}
+	}
+
+	if ($errorcount == 0){
+		$plugin->add_message(OK,"$enccount enclosures, $totpresent fans present and OK.");
+	}
+
+}
+
+sub checkEncPSUHealth{
+	my $enccount=enclosuresPresent();
+	return if $enccount==0;
+	my %encinfo=getEnclosureInfo();
+	my ($errorcount,$totpresent)=(0,0);
+	foreach my $this (keys %encinfo){
 		my $present=$encinfo{$this}{PowerSuppliesPresentCount};
 		my $failed=$encinfo{$this}{PowerSuppliesFailedCount};
 		$totpresent+=$present;
@@ -782,6 +809,14 @@ sub getEnclosureInfo{
 		$tmps=~s/\s+//;
 		@tmpa=split/,/,$tmps;
 		$encinfo{$this}{PowerSuppliesFailedCount}=scalar @tmpa;
+		$tmps=$encinfo{$this}{FansPresent};
+		$tmps=~s/\s+//;
+		@tmpa=split/,/,$tmps;
+		$encinfo{$this}{FansPresentCount}=scalar @tmpa;
+		$tmps=$encinfo{$this}{FansFailed};
+		$tmps=~s/\s+//;
+		@tmpa=split/,/,$tmps;
+		$encinfo{$this}{FansFailedCount}=scalar @tmpa;
 	}
 
 	return %encinfo;
@@ -800,4 +835,12 @@ sub snmpGetTable{
         my $result=$session->get_table("$oid");
         $plugin->nagios_exit(UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
 	return $result;
-} 
+}
+
+sub enclosuresPresent{
+	my $enccount=snmpGetRequest("$baseOID.1.21.1.1.0","enclosure count");
+	if ($enccount==0){
+		$plugin->add_message(OK,'No enclosures present.');
+	}
+	return $enccount;
+}
