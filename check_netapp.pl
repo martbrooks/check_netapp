@@ -385,7 +385,7 @@ sub checkVolumeBytes{
 	my ($errorcount,$volcount)=(0,0);
 	foreach my $this (keys %dfinfo){
 		next if ($dfinfo{$this}{isAggregate}==1 || $dfinfo{$this}{isSnapshot}==1);
-		my $usedbytes=$dfinfo{$this}{PcentUsedBytes};
+		my $usedbytes=$dfinfo{$this}{PcentUsedBytes} || "0";
 		my $hused=$dfinfo{$this}{HumanUsedBytes};
 		my $htotal=$dfinfo{$this}{HumanTotalBytes};
 		my $name=$dfinfo{$this}{Name};
@@ -410,7 +410,7 @@ sub checkVolumeInodes{
 	my ($errorcount,$volcount)=(0,0);
 	foreach my $this (keys %dfinfo){
 		next if ($dfinfo{$this}{isAggregate}==1 || $dfinfo{$this}{isSnapshot}==1);
-		my $usedinodes=$dfinfo{$this}{PcentUsedInodes};
+		my $usedinodes=$dfinfo{$this}{PcentUsedInodes} || "0";
 		my $used=$dfinfo{$this}{UsedInodes};
 		my $total=$dfinfo{$this}{TotalInodes};
 		my $name=$dfinfo{$this}{Name};
