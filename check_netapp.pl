@@ -10,7 +10,6 @@ use Monitoring::Plugin;
 use Monitoring::Plugin qw(%STATUS_TEXT);
 use Net::SNMP;
 use Number::Bytes::Human qw(format_bytes parse_bytes);
-use Switch::Plain;
 use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
@@ -92,16 +91,10 @@ my ($session,$error ) = Net::SNMP->session(
 $plugin->nagios_exit(UNKNOWN, "Could not create SNMP session to $hostname" ) unless $session;
 
 my ($warnneeded,$critneeded)=(0,0);
-sswitch($metric){
-	case 'aggregatebytes'   : { $warnneeded=1; $critneeded=1; }
-	case 'aggregateinodes'  : { $warnneeded=1; $critneeded=1; }
-	case 'treebytequotas'   : { $warnneeded=1; $critneeded=1; }
-	case 'treefilequotas'   : { $warnneeded=1; $critneeded=1; }
-	case 'uptime'           : { $warnneeded=1; $critneeded=1; }
-	case 'userbytequotas'   : { $warnneeded=1; $critneeded=1; }
-	case 'userfilequotas'   : { $warnneeded=1; $critneeded=1; }
-	case 'volumebytes'      : { $warnneeded=1; $critneeded=1; }
-	case 'volumeinodes'     : { $warnneeded=1; $critneeded=1; }
+my @warncrit = qw(aggregatebytes aggregateinodes treebytequotas treefilequotas uptime userbytequotas userfilequotas volumebytes volumebytes);
+if ( grep /^$metric$/, @warncrit ) {
+    $warnneeded = 1;
+    $critneeded = 1;
 }
 
 if ($warnneeded && !defined($warning)){
@@ -112,28 +105,35 @@ if ($critneeded && !defined($critical)){
         $plugin->nagios_exit(UNKNOWN, "The $metric check requires a critical threshold.");
 }
 
-sswitch($metric){
-	case 'aggregatebytes'     : { checkAggregateBytes()  }
-	case 'aggregateinodes'    : { checkAggregateInodes() }
-	case 'autosupport'        : { checkAutosupport()     }
-	case 'cfinterconnect'     : { checkCFInterconnect( ) }
-	case 'cfpartner'          : { checkCFPartner()       }
-	case 'diskhealth'         : { checkDiskHealth()      }
-	case 'enclosurefanhealth' : { checkEncFanHealth()    }
-	case 'enclosurepsuhealth' : { checkEncPSUHealth()    }
-	case 'fanhealth'          : { checkFanHealth()       }
-	case 'globalstatus'       : { checkGlobalStatus()    }
-	case 'nvrambattery'       : { checkNVRAMBattery()    }
-	case 'overtemperature'    : { checkOverTemperature() }
-	case 'psuhealth'          : { checkPSUHealth()       }
-	case 'treebytequotas'     : { checkTreeByteQuotas()  }
-	case 'treefilequotas'     : { checkTreeFileQuotas()  }
-	case 'uptime'             : { checkUptime()          }
-	case 'userbytequotas'     : { checkUserByteQuotas()  }
-	case 'userfilequotas'     : { checkUserFileQuotas()  }
-	case 'volumebytes'        : { checkVolumeBytes()     }
-	case 'volumeinodes'       : { checkVolumeInodes()    }
-	default                   : { $plugin->add_message(CRITICAL,"No handler found for metric $metric."); }
+my $dispatch = {
+
+aggregatebytes     => \&checkAggregateBytes()  ,
+aggregateinodes    => \&checkAggregateInodes() ,
+autosupport        => \&checkAutosupport()     ,
+cfinterconnect     => \&checkCFInterconnect( ) ,
+cfpartner          => \&checkCFPartner()       ,
+diskhealth         => \&checkDiskHealth()      ,
+enclosurefanhealth => \&checkEncFanHealth()    ,
+enclosurepsuhealth => \&checkEncPSUHealth()    ,
+fanhealth         => \&checkFanHealth()       ,
+globalstatus      => \&checkGlobalStatus()    ,
+nvrambattery       => \&checkNVRAMBattery()    ,
+overtemperature    => \&checkOverTemperature() ,
+psuhealth          => \&checkPSUHealth()       ,
+treebytequotas     => \&checkTreeByteQuotas()  ,
+treefilequotas     => \&checkTreeFileQuotas()  ,
+uptime             => \&checkUptime()          ,
+userbytequotas     => \&checkUserByteQuotas()  ,
+userfilequotas     => \&checkUserFileQuotas()  ,
+volumebytes        => \&checkVolumeBytes()     ,
+volumeinodes       => \&checkVolumeInodes()    ,
+
+};
+
+if ( exists $dispatch->{$metric} ) {
+    $dispatch->{$metric}->();
+} else {
+    $plugin->add_message( CRITICAL, "No handler found for metric $metric." );
 }
 
 my ($exitcode,$message)=$plugin->check_messages;
@@ -217,12 +217,10 @@ sub checkCFInterconnect{
 	my %cfinfo=getClusteredFailoverInfo();
 	my $state=$cfinfo{InterconnectStatus};
 	my $message='Interconnect is ';
-	nswitch($state){
-		case 1 : { $message.='not present.';      $exitcode=OK;       }
-		case 2 : { $message.='down.';             $exitcode=CRITICAL; }
-		case 3 : { $message.='partially failed.'; $exitcode=WARNING;  }
-		case 4 : { $message.='up.';               $exitcode=OK;       }
-	}
+		if ($state ==1) { $message.='not present.';      $exitcode=OK;       }
+		if ($state ==2) { $message.='down.';             $exitcode=CRITICAL; }
+		if ($state ==3) { $message.='partially failed.'; $exitcode=WARNING;  }
+		if ($state ==4){ $message.='up.';               $exitcode=OK;       }
 	$plugin->add_message($exitcode,$message);
 }
 
@@ -236,12 +234,10 @@ sub checkCFPartner{
 	my $state=$cfinfo{State};
 	my $message="Clustered failover partner ";
        	if ($name ne ''){$message.="($name) ";}
-	nswitch($state){
-		case 1 : { $message.='may be down.';         $exitcode=WARNING;  }
-		case 2 : { $message.='is okay.';             $exitcode=OK;       }
-		case 3 : { $message.='is dead.';             $exitcode=CRITICAL; }
-		case 4 : { $message.='has been taken over.'; $exitcode=WARNING;  }
-	}
+		if ($state ==1) { $message.='may be down.';         $exitcode=WARNING;  }
+		if ($state ==2){ $message.='is okay.';             $exitcode=OK;       }
+		if ($state ==3) { $message.='is dead.';             $exitcode=CRITICAL; }
+		if ($state ==4){ $message.='has been taken over.'; $exitcode=WARNING;  }
 	$plugin->add_message($exitcode,$message);
 }
 
@@ -272,19 +268,17 @@ sub checkOverTemperature{
 
 sub checkNVRAMBattery{
 	my $exitcode;
-	my $data=snmpGetRequest("$baseOID.1.2.5.1.0","NVRAM battery status");
+	my $state=snmpGetRequest("$baseOID.1.2.5.1.0","NVRAM battery status");
 	my $message='NVRAM battery is ';
-	nswitch ($data){
-		case 1 : { $message.='OK';                   $exitcode=OK;       }
-		case 2 : { $message.='partially discharged'; $exitcode=WARNING;  }
-		case 3 : { $message.='full discharged';      $exitcode=CRITICAL; }
-		case 4 : { $message.='not present';          $exitcode=WARNING;  }
-		case 5 : { $message.='near end of life';     $exitcode=WARNING;  }
-		case 6 : { $message.='at end of life';       $exitcode=CRITICAL; }
-		case 7 : { $message.='unknown';              $exitcode=WARNING;  }
-		case 8 : { $message.='overcharged';          $exitcode=WARNING;  }
-		case 9 : { $message.='fully charged';        $exitcode=WARNING;  }
-	}
+		if ($state ==1){ $message.='OK';                   $exitcode=OK;       }
+		if ($state ==2){ $message.='partially discharged'; $exitcode=WARNING;  }
+		if ($state ==3){ $message.='full discharged';      $exitcode=CRITICAL; }
+		if ($state ==4){ $message.='not present';          $exitcode=WARNING;  }
+		if ($state ==5){ $message.='near end of life';     $exitcode=WARNING;  }
+		if ($state ==6){ $message.='at end of life';       $exitcode=CRITICAL; }
+		if ($state ==7){ $message.='unknown';              $exitcode=WARNING;  }
+		if ($state ==8){ $message.='overcharged';          $exitcode=WARNING;  }
+		if ($state ==9){ $message.='fully charged';        $exitcode=WARNING;  }
 	$message.='.';
 	$plugin->add_message($exitcode,$message);
 }
@@ -545,20 +539,18 @@ sub getQuotaInfo{
 		my $idx=$data[13];
 		my $volidx=$vol . "_" . $idx;
 		my $value=$result->{$line};
-		nswitch ($item){
-			case  2 : { $quotainfo{$volidx}{Type}=$value; $quotainfo{$volidx}{TypeText}=quotaTypeLookup($value); }
-			case  3 : { $quotainfo{$volidx}{ID}=$value; }
-			case  6 : { $quotainfo{$volidx}{BytesUnlimited}=$value; }
-			case  9 : { $quotainfo{$volidx}{FilesUsed}=$value; }
-			case 10 : { $quotainfo{$volidx}{FilesUnlimited}=$value; }
-			case 11 : { $quotainfo{$volidx}{FilesLimit}=$value; }
-			case 12 : { $quotainfo{$volidx}{PathName}=$value; }
-			case 14 : { $quotainfo{$volidx}{QTree}=$value; }
-			case 15 : { $quotainfo{$volidx}{IDType}=$value; }
-			case 16 : { $quotainfo{$volidx}{SID}=$value; }
-			case 25 : { $quotainfo{$volidx}{BytesUsed}=$value; }
-			case 26 : { $quotainfo{$volidx}{BytesLimit}=$value; }
-		}
+			if ($item ==2) { $quotainfo{$volidx}{Type}=$value; $quotainfo{$volidx}{TypeText}=quotaTypeLookup($value); }
+			if ($item ==3){ $quotainfo{$volidx}{ID}=$value; }
+			if ($item ==6){ $quotainfo{$volidx}{BytesUnlimited}=$value; }
+			if ($item ==9){ $quotainfo{$volidx}{FilesUsed}=$value; }
+			if ($item ==10){ $quotainfo{$volidx}{FilesUnlimited}=$value; }
+			if ($item ==11){ $quotainfo{$volidx}{FilesLimit}=$value; }
+			if ($item ==12){ $quotainfo{$volidx}{PathName}=$value; }
+			if ($item ==14){ $quotainfo{$volidx}{QTree}=$value; }
+			if ($item ==15){ $quotainfo{$volidx}{IDType}=$value; }
+			if ($item ==16){ $quotainfo{$volidx}{SID}=$value; }
+			if ($item ==25){ $quotainfo{$volidx}{BytesUsed}=$value; }
+			if ($item ==26){ $quotainfo{$volidx}{BytesLimit}=$value; }
 	}
 
 	foreach my $this (keys %quotainfo){
@@ -569,10 +561,8 @@ sub getQuotaInfo{
 			$quotainfo{$this}{PcentFilesUsed}=sprintf("%.3f",$quotainfo{$this}{FilesUsed}/$quotainfo{$this}{FilesLimit}*100);
 		};
 		$quotainfo{$this}{RealID}='<Unknown>';
-		nswitch($quotainfo{$this}{IDType}){
-			case 1 : { $quotainfo{$this}{RealID}=$quotainfo{$this}{ID}; }
-			case 2 : { $quotainfo{$this}{RealID}=$quotainfo{$this}{SID}; }
-		}
+		if ($quotainfo{$this}{IDType} ==1){ $quotainfo{$this}{RealID}=$quotainfo{$this}{ID}; }
+		if ($quotainfo{$this}{IDType} ==2){ $quotainfo{$this}{RealID}=$quotainfo{$this}{SID}; }
 	}
 
 	return %quotainfo;
@@ -586,17 +576,15 @@ sub getDiskSpaceInfo{
 		my $item=$data[11];
 		my $fs=$data[12];
 		my $value=$result->{$line};
-		nswitch ($item){
-			case  2 : { $dfinfo{$fs}{Name}=$value; $dfinfo{$fs}{isSnapshot}=isSnapshot($value);}
-			case  7 : { $dfinfo{$fs}{UsedInodes}=$value; }
-			case  8 : { $dfinfo{$fs}{FreeInodes}=$value; }
-			case 20 : { $dfinfo{$fs}{Status}=$value; $dfinfo{$fs}{StatusText}=volumeStatusLookup($value);}
-			case 21 : { $dfinfo{$fs}{MirrorStatus}=$value; $dfinfo{$fs}{MirrorStatusText}=volumeMirrorStatusLookup($value);}
-			case 23 : { $dfinfo{$fs}{Type}=$value; $dfinfo{$fs}{TypeText}=volumeTypeLookup($value);}
-			case 29 : { $dfinfo{$fs}{TotalBytes}=$value*1024; }
-			case 30 : { $dfinfo{$fs}{UsedBytes}=$value*1024; }
-			case 31 : { $dfinfo{$fs}{FreeBytes}=$value*1024; }
-		}
+			if ($item ==2){ $dfinfo{$fs}{Name}=$value; $dfinfo{$fs}{isSnapshot}=isSnapshot($value);}
+			if ($item ==7){ $dfinfo{$fs}{UsedInodes}=$value; }
+			if ($item ==8){ $dfinfo{$fs}{FreeInodes}=$value; }
+			if ($item ==20){ $dfinfo{$fs}{Status}=$value; $dfinfo{$fs}{StatusText}=volumeStatusLookup($value);}
+			if ($item ==21){ $dfinfo{$fs}{MirrorStatus}=$value; $dfinfo{$fs}{MirrorStatusText}=volumeMirrorStatusLookup($value);}
+			if ($item ==23){ $dfinfo{$fs}{Type}=$value; $dfinfo{$fs}{TypeText}=volumeTypeLookup($value);}
+			if ($item ==29){ $dfinfo{$fs}{TotalBytes}=$value*1024; }
+			if ($item ==30){ $dfinfo{$fs}{UsedBytes}=$value*1024; }
+			if ($item ==31){ $dfinfo{$fs}{FreeBytes}=$value*1024; }
 	}
 
 	foreach my $fs (keys %dfinfo){
@@ -619,47 +607,41 @@ sub getDiskSpaceInfo{
 sub volumeStatusLookup{
 	my $value=shift;
 	my $text='';
-	nswitch ($value){
-		case  1 : { $text='unmounted';  }
-		case  2 : { $text='mounted';    }
-		case  3 : { $text='frozen';     }
-		case  4 : { $text='destroying'; }
-		case  5 : { $text='creating';   }
-		case  6 : { $text='mounting';   }
-		case  7 : { $text='unmounting'; }
-		case  8 : { $text='nofsinfo';   }
-		case  9 : { $text='replaying';  }
-		case 10 : { $text='replayed';   }
-	}
+		if ($value ==1){ $text='unmounted';  }
+		if ($value ==2){ $text='mounted';    }
+		if ($value ==3){ $text='frozen';     }
+		if ($value ==4){ $text='destroying'; }
+		if ($value ==5){ $text='creating';   }
+		if ($value ==6){ $text='mounting';   }
+		if ($value ==7){ $text='unmounting'; }
+		if ($value ==8){ $text='nofsinfo';   }
+		if ($value ==9){ $text='replaying';  }
+		if ($value ==10){ $text='replayed';   }
 	return $text;
 }
 
 sub volumeMirrorStatusLookup{
 	my $value=shift;
 	my $text='';
-	nswitch ($value){
-		case  1 : { $text='invalid';       }
-		case  2 : { $text='uninitialized'; }
-		case  3 : { $text='needcpcheck';   }
-		case  4 : { $text='cpcheckwait';   }
-		case  5 : { $text='unmirrored';    }
-		case  6 : { $text='normal';        }
-		case  7 : { $text='degraded';      }
-		case  8 : { $text='resyncing';     }
-		case  9 : { $text='failed';        }
-		case 10 : { $text='limbo';         }
-	}
+		if ($value ==1){ $text='invalid';       }
+		if ($value ==2){ $text='uninitialized'; }
+		if ($value ==3){ $text='needcpcheck';   }
+		if ($value ==4){ $text='cpcheckwait';   }
+		if ($value ==5){ $text='unmirrored';    }
+		if ($value ==6){ $text='normal';        }
+		if ($value ==7){ $text='degraded';      }
+		if ($value ==8){ $text='resyncing';     }
+		if ($value ==9){ $text='failed';        }
+		if ($value ==10){ $text='limbo';         }
 	return $text;
 }
 
 sub volumeTypeLookup{
 	my $value=shift;
 	my $text='';
-	nswitch ($value){
-		case 1 : { $text='traditional'; }
-		case 2 : { $text='flexible';    }
-		case 3 : { $text='aggregate';   }
-	}
+		if ($value ==1){ $text='traditional'; }
+		if ($value ==2){ $text='flexible';    }
+		if ($value ==3){ $text='aggregate';   }
 	return $text;
 }
 
@@ -671,14 +653,12 @@ sub isSnapshot{
 sub quotaTypeLookup{
 	my $value=shift;
 	my $text='';
-	nswitch ($value){
-		case 1 : { $text='user';         }
-		case 2 : { $text='group';        }
-		case 3 : { $text='tree';         }
-		case 4 : { $text='userdefault';  }
-		case 5 : { $text='groupdefault'; }
-		case 6 : { $text='unknown';      }
-	}
+		if ($value ==1){ $text='user';         }
+		if ($value ==2){ $text='group';        }
+		if ($value ==3){ $text='tree';         }
+		if ($value ==4){ $text='userdefault';  }
+		if ($value ==5){ $text='groupdefault'; }
+		if ($value ==6){ $text='unknown';      }
 	return $text;
 }
 
@@ -686,19 +666,17 @@ sub getDiskHealthInfo{
 	my %dhinfo=();
 	for (my $oid=1; $oid<=11; $oid++){
 		my $data=snmpGetRequest("$baseOID.1.6.4.$oid.0","disk OID $oid");
-		nswitch ($oid){
-			case  1 : { $dhinfo{Total}=$data;                }
-			case  2 : { $dhinfo{Active}=$data;               }
-			case  3 : { $dhinfo{Reconstructing}=$data;       }
-			case  4 : { $dhinfo{ReconstructingParity}=$data; }
-			case  5 : { $dhinfo{VerifyingParity}=$data;      }
-			case  6 : { $dhinfo{Scrubbing}=$data;            }
-			case  7 : { $dhinfo{Failed}=$data;               }
-			case  8 : { $dhinfo{Spare}=$data;                }
-			case  9 : { $dhinfo{AddingSpare}=$data;          }
-			case 10 : { $dhinfo{FailedMessage}=$data;        }
-			case 11 : { $dhinfo{Prefailed}=$data;            }
-		}
+			if ($oid ==1){ $dhinfo{Total}=$data;                }
+			if ($oid ==2){ $dhinfo{Active}=$data;               }
+			if ($oid ==3){ $dhinfo{Reconstructing}=$data;       }
+			if ($oid ==4){ $dhinfo{ReconstructingParity}=$data; }
+			if ($oid ==5){ $dhinfo{VerifyingParity}=$data;      }
+			if ($oid ==6){ $dhinfo{Scrubbing}=$data;            }
+			if ($oid ==7){ $dhinfo{Failed}=$data;               }
+			if ($oid ==8){ $dhinfo{Spare}=$data;                }
+			if ($oid ==9){ $dhinfo{AddingSpare}=$data;          }
+			if ($oid ==10){ $dhinfo{FailedMessage}=$data;        }
+			if ($oid ==11){ $dhinfo{Prefailed}=$data;            }
 	}
 	return %dhinfo;
 }
@@ -707,16 +685,14 @@ sub getClusteredFailoverInfo{
 	my %cfinfo=();
 	for (my $oid=1; $oid<=8; $oid++){
 		my $data=snmpGetRequest("$baseOID.1.2.3.$oid.0","CF OID $oid");
-		nswitch ($oid){
-			case  1 : { $cfinfo{Settings}=$data;                }
-			case  2 : { $cfinfo{State}=$data;                   }
-			case  3 : { $cfinfo{CannotTakeoverCause}=$data;     }
-			case  4 : { $cfinfo{PartnerStatus}=$data;           }
-			case  5 : { $cfinfo{PartnerLastStatusUpdate}=$data; }
-			case  6 : { $cfinfo{PartnerName}=$data;             }
-			case  7 : { $cfinfo{PartnerSysid}=$data;            }
-			case  8 : { $cfinfo{InterconnectStatus}=$data;      }
-		}
+			if ($oid ==1){ $cfinfo{Settings}=$data;                }
+			if ($oid ==2){ $cfinfo{State}=$data;                   }
+			if ($oid ==3){ $cfinfo{CannotTakeoverCause}=$data;     }
+			if ($oid ==4){ $cfinfo{PartnerStatus}=$data;           }
+			if ($oid ==5){ $cfinfo{PartnerLastStatusUpdate}=$data; }
+			if ($oid ==6){ $cfinfo{PartnerName}=$data;             }
+			if ($oid ==7){ $cfinfo{PartnerSysid}=$data;            }
+			if ($oid ==8){ $cfinfo{InterconnectStatus}=$data;      }
 	}
 	return %cfinfo;
 }
@@ -725,13 +701,12 @@ sub getEnvironmentInfo{
 	my %einfo=();
 	for (my $oid=1; $oid<=5; $oid++){
 		my $data=snmpGetRequest("$baseOID.1.2.4.$oid.0","environment OID $oid");
-		nswitch ($oid){
-			case  1 : { $einfo{OverTemperature}=$data;  }
-			case  2 : { $einfo{FailedFanCount}=$data;   }
-			case  3 : { $einfo{FailedFanMessage}=$data; }
-			case  4 : { $einfo{FailedPSUCount}=$data;   }
-			case  5 : { $einfo{FailedPSUMessage}=$data; }
-		}
+			if ($oid ==1){ $einfo{OverTemperature}=$data;  }
+			if ($oid ==2){ $einfo{FailedFanCount}=$data;   }
+			if ($oid ==3){ $einfo{FailedFanMessage}=$data; }
+			if ($oid ==4){ $einfo{FailedPSUCount}=$data;   }
+			if ($oid ==5){ $einfo{FailedPSUMessage}=$data; }
+		
 	}
 	return %einfo;
 }
@@ -744,72 +719,71 @@ sub getEnclosureInfo{
 		my $item=$data[12];
 		my $enc=$data[13];
 		my $value=$result->{$line};
-		nswitch ($item){
-			case  2 : { $encinfo{$enc}{ContactState}=$value; }
-			case  3 : { $encinfo{$enc}{ChannelShelfAddr}=$value; }
-			case  4 : { $encinfo{$enc}{ProductLogicalID}=$value; }
-			case  5 : { $encinfo{$enc}{ProductID}=$value; }
-			case  6 : { $encinfo{$enc}{ProductVendor}=$value; }
-			case  7 : { $encinfo{$enc}{ProductModel}=$value; }
-			case  8 : { $encinfo{$enc}{ProductRevision}=$value; }
-			case  9 : { $encinfo{$enc}{ProductSerialNo}=$value; }
-			case 10 : { $encinfo{$enc}{NumberDiskBays}=$value; }
-			case 11 : { $encinfo{$enc}{DisksPresent}=$value; }
-			case 12 : { $encinfo{$enc}{PowerSuppliesMaximum}=$value; }
-			case 13 : { $encinfo{$enc}{PowerSuppliesPresent}=$value; }
-			case 14 : { $encinfo{$enc}{PowerSuppliesSerialNos}=$value; }
-			case 15 : { $encinfo{$enc}{PowerSuppliesFailed}=$value; }
-			case 16 : { $encinfo{$enc}{FansMaximum}=$value; }
-			case 17 : { $encinfo{$enc}{FansPresent}=$value; }
-			case 18 : { $encinfo{$enc}{FansFailed}=$value; }
-			case 19 : { $encinfo{$enc}{TempSensorsMaximum}=$value; }
-			case 20 : { $encinfo{$enc}{TempSensorsPresent}=$value; }
-			case 21 : { $encinfo{$enc}{TempSensorsOverTempFail}=$value; }
-			case 22 : { $encinfo{$enc}{TempSensorsOverTempWarn}=$value; }
-			case 23 : { $encinfo{$enc}{TempSensorsUnderTempFail}=$value; }
-			case 24 : { $encinfo{$enc}{TempSensorsUnderTempWarn}=$value; }
-			case 25 : { $encinfo{$enc}{TempSensorsCurrentTemp}=$value; }
-			case 26 : { $encinfo{$enc}{TempSensorsOverTempFailThr}=$value; }
-			case 27 : { $encinfo{$enc}{TempSensorsOverTempWarnThr}=$value; }
-			case 28 : { $encinfo{$enc}{TempSensorsUnderTempFailThr}=$value; }
-			case 29 : { $encinfo{$enc}{TempSensorsUnderTempWarnThr}=$value; }
-			case 30 : { $encinfo{$enc}{ElectronicsMaximum}=$value; }
-			case 31 : { $encinfo{$enc}{ElectronicsPresent}=$value; }
-			case 32 : { $encinfo{$enc}{ElectronicsSerialNos}=$value; }
-			case 33 : { $encinfo{$enc}{ElectronicsFailed}=$value; }
-			case 34 : { $encinfo{$enc}{VoltSensorsMaximum}=$value; }
-			case 35 : { $encinfo{$enc}{VoltSensorsPresent}=$value; }
-			case 36 : { $encinfo{$enc}{VoltSensorsOverVoltFail}=$value; }
-			case 37 : { $encinfo{$enc}{VoltSensorsOverVoltWarn}=$value; }
-			case 38 : { $encinfo{$enc}{VoltSensorsUnderVoltFail}=$value; }
-			case 39 : { $encinfo{$enc}{VoltSensorsUnderVoltWarn}=$value; }
-			case 40 : { $encinfo{$enc}{VoltSensorsOverVoltFailThr}=$value; }
-			case 41 : { $encinfo{$enc}{VoltSensorsOverVoltWarnThr}=$value; }
-			case 42 : { $encinfo{$enc}{VoltSensorsUnderVoltFailThr}=$value; }
-			case 43 : { $encinfo{$enc}{VoltSensorsUnderVoltWarnThr}=$value; }
-			case 44 : { $encinfo{$enc}{VoltSensorsCurrentVolt}=$value; }
-			case 45 : { $encinfo{$enc}{CurSensorsMaximum}=$value; }
-			case 46 : { $encinfo{$enc}{CurSensorsPresent}=$value; }
-			case 47 : { $encinfo{$enc}{CurSensorsOverCurFail}=$value; }
-			case 48 : { $encinfo{$enc}{CurSensorsOverCurWarn}=$value; }
-			case 49 : { $encinfo{$enc}{CurSensorsOverCurFailThr}=$value; }
-			case 50 : { $encinfo{$enc}{CurSensorsOverCurWarnThr}=$value; }
-			case 51 : { $encinfo{$enc}{CurSensorsCurrentCur}=$value; }
-			case 52 : { $encinfo{$enc}{SASConnectMaximum}=$value; }
-			case 53 : { $encinfo{$enc}{SASConnectPresent}=$value; }
-			case 54 : { $encinfo{$enc}{SASConnectVendor}=$value; }
-			case 55 : { $encinfo{$enc}{SASConnectType}=$value; }
-			case 56 : { $encinfo{$enc}{SASConnectCableLen}=$value; }
-			case 57 : { $encinfo{$enc}{SASConnectCableTech}=$value; }
-			case 58 : { $encinfo{$enc}{SASConnectCableEnd}=$value; }
-			case 59 : { $encinfo{$enc}{SASConnectSerialNos}=$value; }
-			case 60 : { $encinfo{$enc}{SASConnectPartNos}=$value; }
-			case 61 : { $encinfo{$enc}{PowerSuppliesPartNos}=$value; }
-			case 62 : { $encinfo{$enc}{FansSpeed}=$value; }
-			case 63 : { $encinfo{$enc}{ElectronicsPartNos}=$value; }
-			case 64 : { $encinfo{$enc}{ElectronicsCPLDVers}=$value; }
-		}
-	}
+ 
+			if ($item==2){ $encinfo{$enc}{ContactState}=$value; }
+			if ($item==3){ $encinfo{$enc}{ChannelShelfAddr}=$value; }
+			if ($item==4){ $encinfo{$enc}{ProductLogicalID}=$value; }
+			if ($item==5){ $encinfo{$enc}{ProductID}=$value; }
+			if ($item==6){ $encinfo{$enc}{ProductVendor}=$value; }
+			if ($item==7){ $encinfo{$enc}{ProductModel}=$value; }
+			if ($item==8){ $encinfo{$enc}{ProductRevision}=$value; }
+			if ($item==9){ $encinfo{$enc}{ProductSerialNo}=$value; }
+			if ($item==10){ $encinfo{$enc}{NumberDiskBays}=$value; }
+			if ($item==11){ $encinfo{$enc}{DisksPresent}=$value; }
+			if ($item==12){ $encinfo{$enc}{PowerSuppliesMaximum}=$value; }
+			if ($item==13){ $encinfo{$enc}{PowerSuppliesPresent}=$value; }
+			if ($item==14){ $encinfo{$enc}{PowerSuppliesSerialNos}=$value; }
+			if ($item==15){ $encinfo{$enc}{PowerSuppliesFailed}=$value; }
+			if ($item== 16 ) { $encinfo{$enc}{FansMaximum}=$value; }
+			if ($item== 17 ) { $encinfo{$enc}{FansPresent}=$value; }
+			if ($item== 18 ) { $encinfo{$enc}{FansFailed}=$value; }
+			if ($item== 19 ) { $encinfo{$enc}{TempSensorsMaximum}=$value; }
+			if ($item== 20 ) { $encinfo{$enc}{TempSensorsPresent}=$value; }
+			if ($item== 21 ) { $encinfo{$enc}{TempSensorsOverTempFail}=$value; }
+			if ($item== 22 ) { $encinfo{$enc}{TempSensorsOverTempWarn}=$value; }
+			if ($item== 23 ) { $encinfo{$enc}{TempSensorsUnderTempFail}=$value; }
+			if ($item== 24 ) { $encinfo{$enc}{TempSensorsUnderTempWarn}=$value; }
+			if ($item== 25 ) { $encinfo{$enc}{TempSensorsCurrentTemp}=$value; }
+			if ($item== 26 ) { $encinfo{$enc}{TempSensorsOverTempFailThr}=$value; }
+			if ($item== 27 ) { $encinfo{$enc}{TempSensorsOverTempWarnThr}=$value; }
+			if ($item== 28 ) { $encinfo{$enc}{TempSensorsUnderTempFailThr}=$value; }
+			if ($item== 29 ) { $encinfo{$enc}{TempSensorsUnderTempWarnThr}=$value; }
+			if ($item== 30 ) { $encinfo{$enc}{ElectronicsMaximum}=$value; }
+			if ($item== 31 ) { $encinfo{$enc}{ElectronicsPresent}=$value; }
+			if ($item== 32 ) { $encinfo{$enc}{ElectronicsSerialNos}=$value; }
+			if ($item== 33 ) { $encinfo{$enc}{ElectronicsFailed}=$value; }
+			if ($item== 34 ) { $encinfo{$enc}{VoltSensorsMaximum}=$value; }
+			if ($item== 35 ) { $encinfo{$enc}{VoltSensorsPresent}=$value; }
+			if ($item== 36 ) { $encinfo{$enc}{VoltSensorsOverVoltFail}=$value; }
+			if ($item== 37 ) { $encinfo{$enc}{VoltSensorsOverVoltWarn}=$value; }
+			if ($item== 38 ) { $encinfo{$enc}{VoltSensorsUnderVoltFail}=$value; }
+			if ($item== 39 ) { $encinfo{$enc}{VoltSensorsUnderVoltWarn}=$value; }
+			if ($item== 40 ) { $encinfo{$enc}{VoltSensorsOverVoltFailThr}=$value; }
+			if ($item== 41 ) { $encinfo{$enc}{VoltSensorsOverVoltWarnThr}=$value; }
+			if ($item== 42 ) { $encinfo{$enc}{VoltSensorsUnderVoltFailThr}=$value; }
+			if ($item== 43 ) { $encinfo{$enc}{VoltSensorsUnderVoltWarnThr}=$value; }
+			if ($item== 44 ) { $encinfo{$enc}{VoltSensorsCurrentVolt}=$value; }
+			if ($item== 45 ) { $encinfo{$enc}{CurSensorsMaximum}=$value; }
+			if ($item== 46 ) { $encinfo{$enc}{CurSensorsPresent}=$value; }
+			if ($item== 47 ) { $encinfo{$enc}{CurSensorsOverCurFail}=$value; }
+			if ($item== 48 ) { $encinfo{$enc}{CurSensorsOverCurWarn}=$value; }
+			if ($item== 49 ) { $encinfo{$enc}{CurSensorsOverCurFailThr}=$value; }
+			if ($item== 50 ) { $encinfo{$enc}{CurSensorsOverCurWarnThr}=$value; }
+			if ($item== 51 ) { $encinfo{$enc}{CurSensorsCurrentCur}=$value; }
+			if ($item== 52 ) { $encinfo{$enc}{SASConnectMaximum}=$value; }
+			if ($item== 53 ) { $encinfo{$enc}{SASConnectPresent}=$value; }
+			if ($item== 54 ) { $encinfo{$enc}{SASConnectVendor}=$value; }
+			if ($item== 55 ) { $encinfo{$enc}{SASConnectType}=$value; }
+			if ($item== 56 ) { $encinfo{$enc}{SASConnectCableLen}=$value; }
+			if ($item== 57 ) { $encinfo{$enc}{SASConnectCableTech}=$value; }
+			if ($item== 58 ) { $encinfo{$enc}{SASConnectCableEnd}=$value; }
+			if ($item== 59 ) { $encinfo{$enc}{SASConnectSerialNos}=$value; }
+			if ($item== 60 ) { $encinfo{$enc}{SASConnectPartNos}=$value; }
+			if ($item== 61 ) { $encinfo{$enc}{PowerSuppliesPartNos}=$value; }
+			if ($item== 62 ) { $encinfo{$enc}{FansSpeed}=$value; }
+			if ($item== 63 ) { $encinfo{$enc}{ElectronicsPartNos}=$value; }
+			if ($item== 64 ) { $encinfo{$enc}{ElectronicsCPLDVers}=$value; }
+	}	
 
 	my $tmps;
 	my @tmpa;
