@@ -6,8 +6,8 @@ use warnings;
 use Cwd 'abs_path';
 use File::Basename;
 use Getopt::Long::Descriptive;
-use Nagios::Plugin;
-use Nagios::Plugin qw(%STATUS_TEXT);
+use Monitoring::Plugin;
+use Monitoring::Plugin qw(%STATUS_TEXT);
 use Net::SNMP;
 use Number::Bytes::Human qw(format_bytes parse_bytes);
 use Switch::Plain;
@@ -80,7 +80,7 @@ if ($yaml->{hostmap}->{$hostname}){
         $hostname=lc($yaml->{hostmap}->{$hostname});
 }
 
-my $plugin = Nagios::Plugin->new;
+my $plugin = Monitoring::Plugin->new;
 my $baseOID = '1.3.6.1.4.1.789';
 
 my ($session,$error ) = Net::SNMP->session(
