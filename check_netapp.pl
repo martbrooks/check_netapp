@@ -110,26 +110,26 @@ if ( $critneeded && !defined($critical) ) {
 }
 
 my $dispatch = {
-    aggregatebytes     => \&checkAggregateBytes(),
-    aggregateinodes    => \&checkAggregateInodes(),
-    autosupport        => \&checkAutosupport(),
-    cfinterconnect     => \&checkCFInterconnect(),
-    cfpartner          => \&checkCFPartner(),
-    diskhealth         => \&checkDiskHealth(),
-    enclosurefanhealth => \&checkEncFanHealth(),
-    enclosurepsuhealth => \&checkEncPSUHealth(),
-    fanhealth          => \&checkFanHealth(),
-    globalstatus       => \&checkGlobalStatus(),
-    nvrambattery       => \&checkNVRAMBattery(),
-    overtemperature    => \&checkOverTemperature(),
-    psuhealth          => \&checkPSUHealth(),
-    treebytequotas     => \&checkTreeByteQuotas(),
-    treefilequotas     => \&checkTreeFileQuotas(),
-    uptime             => \&checkUptime(),
-    userbytequotas     => \&checkUserByteQuotas(),
-    userfilequotas     => \&checkUserFileQuotas(),
-    volumebytes        => \&checkVolumeBytes(),
-    volumeinodes       => \&checkVolumeInodes(),
+    aggregatebytes     => \&checkAggregateBytes,
+    aggregateinodes    => \&checkAggregateInodes,
+    autosupport        => \&checkAutosupport,
+    cfinterconnect     => \&checkCFInterconnect,
+    cfpartner          => \&checkCFPartner,
+    diskhealth         => \&checkDiskHealth,
+    enclosurefanhealth => \&checkEncFanHealth,
+    enclosurepsuhealth => \&checkEncPSUHealth,
+    fanhealth          => \&checkFanHealth,
+    globalstatus       => \&checkGlobalStatus,
+    nvrambattery       => \&checkNVRAMBattery,
+    overtemperature    => \&checkOverTemperature,
+    psuhealth          => \&checkPSUHealth,
+    treebytequotas     => \&checkTreeByteQuotas,
+    treefilequotas     => \&checkTreeFileQuotas,
+    uptime             => \&checkUptime,
+    userbytequotas     => \&checkUserByteQuotas,
+    userfilequotas     => \&checkUserFileQuotas,
+    volumebytes        => \&checkVolumeBytes,
+    volumeinodes       => \&checkVolumeInodes,
 };
 
 if ( exists $dispatch->{$metric} ) {
@@ -571,6 +571,8 @@ sub getQuotaInfo {
 
 sub getDiskSpaceInfo {
     my $result = snmpGetTable( "$baseOID.1.5.4", "disk usage information" );
+    use Data::Dumper;
+    print Dumper $result;
     my %dfinfo = ();
     foreach my $line ( keys %{$result} ) {
         my @data  = split /\./, $line;
@@ -813,7 +815,7 @@ sub getEnclosureInfo {
 sub snmpGetRequest {
     my ( $oid, $itemdesc ) = @_;
     my $result = $session->get_request("$oid");
-    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
+    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
     my $data = $result->{"$oid"};
     return $data;
 }
@@ -821,7 +823,7 @@ sub snmpGetRequest {
 sub snmpGetTable {
     my ( $oid, $itemdesc ) = @_;
     my $result = $session->get_table("$oid");
-    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc: " . $session->error ) unless defined $result;
+    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
     return $result;
 }
 
