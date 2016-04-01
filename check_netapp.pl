@@ -420,7 +420,7 @@ sub checkVolumeInodes {
 
     if ( $errorcount == 0 ) {
         my $message = "$volcount volume";
-        $message .= $volcount != 0 ? ' is OK' : 's are OK';
+        $message .= $volcount == 1 ? ' is OK' : 's are OK';
         $message .= '.';
         $plugin->add_message( OK, $message );
     }
@@ -571,8 +571,6 @@ sub getQuotaInfo {
 
 sub getDiskSpaceInfo {
     my $result = snmpGetTable( "$baseOID.1.5.4", "disk usage information" );
-    use Data::Dumper;
-    print Dumper $result;
     my %dfinfo = ();
     foreach my $line ( keys %{$result} ) {
         my @data  = split /\./, $line;
