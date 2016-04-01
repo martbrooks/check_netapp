@@ -395,7 +395,7 @@ sub checkVolumeBytes {
 
     if ( $errorcount == 0 ) {
         my $message = "$volcount volume";
-        $message .= $volcount != 0 ? ' is OK' : 's are OK';
+        $message .= $volcount == 1 ? ' is OK' : 's are OK';
         $message .= '.';
         $plugin->add_message( OK, $message );
     }
