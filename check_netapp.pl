@@ -14,7 +14,7 @@ use Time::Duration;
 use Time::Duration::Parse;
 use YAML::XS qw(DumpFile LoadFile);
 
-my $VERSION = '2014062300';
+my $VERSION = '2016040400';
 
 my ( $opt, $usage ) = describe_options(
     "%c (ver. $VERSION) %o",
