@@ -345,7 +345,7 @@ sub checkAggregateBytes {
 
     if ( $errorcount == 0 ) {
         my $message = "$aggcount aggregate";
-        $message .= $aggcount != 0 ? ' is OK' : 's are OK';
+        $message .= $aggcount == 1 ? ' is OK' : 's are OK';
         $message .= '.';
         $plugin->add_message( OK, $message );
     }
@@ -370,7 +370,7 @@ sub checkAggregateInodes {
 
     if ( $errorcount == 0 ) {
         my $message = "$aggcount aggregate";
-        $message .= $aggcount != 0 ? ' is OK' : 's are OK';
+        $message .= $aggcount == 1 ? ' is OK' : 's are OK';
         $message .= '.';
         $plugin->add_message( OK, $message );
     }
