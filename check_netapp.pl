@@ -191,12 +191,12 @@ sub checkEncPSUHealth {
 
 sub checkAutosupport {
     my $message = 'Autosupport status is okay.';
-    my $state   = snmpGetRequest( "$baseOID.1.2.7.1.0", "autosupport status" );
-    my $success = snmpGetRequest( "$baseOID.1.2.7.3.0", "autosupport successful sends" );
-    my $failed  = snmpGetRequest( "$baseOID.1.2.7.4.0", "autosupport failed sends" );
+    my $state   = snmpGetRequest( "$baseOID.1.2.7.1.0", "autosupport status", 0 );
+    my $success = snmpGetRequest( "$baseOID.1.2.7.3.0", "autosupport successful sends", 0 );
+    my $failed  = snmpGetRequest( "$baseOID.1.2.7.4.0", "autosupport failed sends", 0 );
     my $total   = $success + $failed;
     if ( $state != 1 ) {
-        $message = snmpGetRequest( "$baseOID.1.2.7.2.0", "autosupport status message" );
+        $message = snmpGetRequest( "$baseOID.1.2.7.2.0", "autosupport status message", 0 );
         $message =~ s/\n+/ /g;
     }
     my $exitcode = $state == 1 ? OK : CRITICAL;
@@ -206,9 +206,9 @@ sub checkAutosupport {
 
 sub checkGlobalStatus {
     my $message = 'Global status is okay.';
-    my $state = snmpGetRequest( "$baseOID.1.2.2.4.0", "global status" );
+    my $state = snmpGetRequest( "$baseOID.1.2.2.4.0", "global status", 0 );
     if ( $state != 3 ) {
-        $message = snmpGetRequest( "$baseOID.1.2.2.25.0", "global status message" );
+        $message = snmpGetRequest( "$baseOID.1.2.2.25.0", "global status message", 0 );
         $message =~ s/\n+/ /g;
     }
     my $exitcode = $state == 3 ? OK : CRITICAL;
@@ -270,7 +270,7 @@ sub checkOverTemperature {
 
 sub checkNVRAMBattery {
     my $exitcode;
-    my $state = snmpGetRequest( "$baseOID.1.2.5.1.0", "NVRAM battery status" );
+    my $state = snmpGetRequest( "$baseOID.1.2.5.1.0", "NVRAM battery status", 0 );
     my $message = 'NVRAM battery is ';
     if ( $state == 1 ) { $message .= 'OK';                   $exitcode = OK; }
     if ( $state == 2 ) { $message .= 'partially discharged'; $exitcode = WARNING; }
@@ -317,7 +317,7 @@ sub checkDiskHealth {
 
 sub checkUptime {
     my ( $exitcode, $message );
-    my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime" );
+    my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime", 0 );
     $rawuptime =~ s/\.\d\d$/ seconds/;
     $rawuptime =~ s/:/ minutes, /;
     my $uptime = parse_duration($rawuptime);
@@ -570,7 +570,7 @@ sub getQuotaInfo {
 }
 
 sub getDiskSpaceInfo {
-    my $result = snmpGetTable( "$baseOID.1.5.4", "disk usage information" );
+    my $result = snmpGetTable( "$baseOID.1.5.4", "disk usage information", 0 );
     my %dfinfo = ();
     foreach my $line ( keys %{$result} ) {
         my @data  = split /\./, $line;
@@ -669,7 +669,7 @@ sub quotaTypeLookup {
 sub getDiskHealthInfo {
     my %dhinfo = ();
     for ( my $oid = 1 ; $oid <= 11 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.6.4.$oid.0", "disk OID $oid" );
+        my $data = snmpGetRequest( "$baseOID.1.6.4.$oid.0", "disk OID $oid", 0 );
         if ( $oid == 1 )  { $dhinfo{Total}                = $data; }
         if ( $oid == 2 )  { $dhinfo{Active}               = $data; }
         if ( $oid == 3 )  { $dhinfo{Reconstructing}       = $data; }
@@ -688,7 +688,7 @@ sub getDiskHealthInfo {
 sub getClusteredFailoverInfo {
     my %cfinfo = ();
     for ( my $oid = 1 ; $oid <= 8 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.2.3.$oid.0", "CF OID $oid" );
+        my $data = snmpGetRequest( "$baseOID.1.2.3.$oid.0", "CF OID $oid", 0 );
         if ( $oid == 1 ) { $cfinfo{Settings}                = $data; }
         if ( $oid == 2 ) { $cfinfo{State}                   = $data; }
         if ( $oid == 3 ) { $cfinfo{CannotTakeoverCause}     = $data; }
@@ -704,7 +704,7 @@ sub getClusteredFailoverInfo {
 sub getEnvironmentInfo {
     my %einfo = ();
     for ( my $oid = 1 ; $oid <= 5 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.2.4.$oid.0", "environment OID $oid" );
+        my $data = snmpGetRequest( "$baseOID.1.2.4.$oid.0", "environment OID $oid", 0 );
         if ( $oid == 1 ) { $einfo{OverTemperature}  = $data; }
         if ( $oid == 2 ) { $einfo{FailedFanCount}   = $data; }
         if ( $oid == 3 ) { $einfo{FailedFanMessage} = $data; }
@@ -717,7 +717,7 @@ sub getEnvironmentInfo {
 
 sub getEnclosureInfo {
     my %encinfo = ();
-    my $result = snmpGetTable( "$baseOID.1.21.1.2", "enclosure info" );
+    my $result = snmpGetTable( "$baseOID.1.21.1.2", "enclosure info", 0 );
     foreach my $line ( keys %{$result} ) {
         my @data  = split /\./, $line;
         my $item  = $data[12];
@@ -833,7 +833,7 @@ sub snmpGetTable {
 }
 
 sub enclosuresPresent {
-    my $enccount = snmpGetRequest( "$baseOID.1.21.1.1.0", "enclosure count" );
+    my $enccount = snmpGetRequest( "$baseOID.1.21.1.1.0", "enclosure count", 0 );
     if ( $enccount == 0 ) {
         $plugin->add_message( OK, 'No enclosures present.' );
     }
