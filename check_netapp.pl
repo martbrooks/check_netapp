@@ -448,7 +448,7 @@ sub checkTreeByteQuotas {
     }
 
     if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$qcount tree byte quotas OK, $qunlim unlimited quotas." );
+        $plugin->add_message( OK, "$qcount tree byte quotas, $qunlim unlimited quotas." );
     }
 }
 
@@ -474,7 +474,7 @@ sub checkTreeFileQuotas {
     }
 
     if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$qcount tree file quotas OK, $qunlim unlimited quotas." );
+        $plugin->add_message( OK, "$qcount tree file quotas, $qunlim unlimited quotas." );
     }
 }
 
