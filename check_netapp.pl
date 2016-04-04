@@ -710,7 +710,6 @@ sub getEnvironmentInfo {
         if ( $oid == 3 ) { $einfo{FailedFanMessage} = $data; }
         if ( $oid == 4 ) { $einfo{FailedPSUCount}   = $data; }
         if ( $oid == 5 ) { $einfo{FailedPSUMessage} = $data; }
-
     }
     return %einfo;
 }
@@ -819,7 +818,7 @@ sub snmpGetRequest {
     if ( $undef_on_fail == 0 ) {
         $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
     }
-    my $data = $result->{"$oid"} || undef;
+    my $data = $result->{"$oid"} // undef;
     return $data;
 }
 
