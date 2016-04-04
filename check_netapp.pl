@@ -597,6 +597,9 @@ sub getDiskSpaceInfo {
             eval {
                 $dfinfo{$fs}{PcentUsedBytes}  = sprintf( "%.3f", $dfinfo{$fs}{UsedBytes} / $dfinfo{$fs}{TotalBytes} * 100 );
                 $dfinfo{$fs}{PcentUsedInodes} = sprintf( "%.3f", $dfinfo{$fs}{UsedInodes} / $dfinfo{$fs}{TotalInodes} * 100 );
+                $dfinfo{$fs}{PcentUsedBytes}  += 0;
+                $dfinfo{$fs}{PcentUsedInodes} += 0;
+
             };
         }
         $dfinfo{$fs}{isAggregate} = $dfinfo{$fs}{Type} == 3 ? 1 : 0;
