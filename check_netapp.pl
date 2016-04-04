@@ -321,7 +321,7 @@ sub checkUptime {
     my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime", 0 );
     $rawuptime = int( $rawuptime / 100 );
     my $uptime = parse_duration("$rawuptime seconds");
-    $exitcode = $plugin->check_threshold( check => $uptime / 3600, warning => $warning, critical => $critical );
+    $exitcode = $plugin->check_threshold( check => $rawuptime / 3600, warning => $warning, critical => $critical );
     $message = "System uptime is " . duration( $uptime, 3 ) . '.';
     $plugin->add_message( $exitcode, $message );
 }
