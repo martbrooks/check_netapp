@@ -500,7 +500,7 @@ sub checkUserByteQuotas {
     }
 
     if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$qcount tree user quotas OK, $qunlim unlimited quotas." );
+        $plugin->add_message( OK, "$qcount user byte quotas, $qunlim unlimited quotas." );
     }
 }
 
@@ -526,12 +526,12 @@ sub checkUserFileQuotas {
     }
 
     if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$qcount user file quotas OK, $qunlim unlimited quotas." );
+        $plugin->add_message( OK, "$qcount user file quotas, $qunlim unlimited quotas." );
     }
 }
 
 sub getQuotaInfo {
-    my $result = snmpGetTable( "$baseOID.1.4.6", "quota information" );
+    my $result = snmpGetTable( "$baseOID.1.4.6", "quota information", 1 );
     my %quotainfo = ();
     foreach my $line ( keys %{$result} ) {
         my @data   = split /\./, $line;
@@ -814,17 +814,21 @@ sub getEnclosureInfo {
 }
 
 sub snmpGetRequest {
-    my ( $oid, $itemdesc ) = @_;
+    my ( $oid, $itemdesc, $undef_on_fail ) = @_;
     my $result = $session->get_request("$oid");
-    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
-    my $data = $result->{"$oid"};
+    if ( $undef_on_fail == 0 ) {
+        $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
+    }
+    my $data = $result->{"$oid"} || undef;
     return $data;
 }
 
 sub snmpGetTable {
-    my ( $oid, $itemdesc ) = @_;
+    my ( $oid, $itemdesc, $undef_on_fail ) = @_;
     my $result = $session->get_table("$oid");
-    $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
+    if ( $undef_on_fail == 0 ) {
+        $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
+    }
     return $result;
 }
 
