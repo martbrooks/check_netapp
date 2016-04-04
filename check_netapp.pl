@@ -317,10 +317,10 @@ sub checkDiskHealth {
 
 sub checkUptime {
     my ( $exitcode, $message );
+    $session->translate(0);
     my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime", 0 );
-    $rawuptime =~ s/\.\d\d$/ seconds/;
-    $rawuptime =~ s/:/ minutes, /;
-    my $uptime = parse_duration($rawuptime);
+    $rawuptime = int( $rawuptime / 100 );
+    my $uptime = parse_duration("$rawuptime seconds");
     $exitcode = $plugin->check_threshold( check => $uptime / 3600, warning => $warning, critical => $critical );
     $message = "System uptime is " . duration( $uptime, 3 ) . '.';
     $plugin->add_message( $exitcode, $message );
