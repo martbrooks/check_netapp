@@ -610,43 +610,46 @@ sub getDiskSpaceInfo {
 
 sub volumeStatusLookup {
     my $value = shift;
-    my $text  = '';
-    if ( $value == 1 )  { $text = 'unmounted'; }
-    if ( $value == 2 )  { $text = 'mounted'; }
-    if ( $value == 3 )  { $text = 'frozen'; }
-    if ( $value == 4 )  { $text = 'destroying'; }
-    if ( $value == 5 )  { $text = 'creating'; }
-    if ( $value == 6 )  { $text = 'mounting'; }
-    if ( $value == 7 )  { $text = 'unmounting'; }
-    if ( $value == 8 )  { $text = 'nofsinfo'; }
-    if ( $value == 9 )  { $text = 'replaying'; }
-    if ( $value == 10 ) { $text = 'replayed'; }
-    return $text;
+    my %map   = (
+        1  => 'unmounted',
+        2  => 'mounted',
+        3  => 'frozen',
+        4  => 'destroying',
+        5  => 'creating',
+        6  => 'mounting',
+        7  => 'unmounting',
+        8  => 'nofsinfo',
+        9  => 'replaying',
+        10 => 'replayed',
+    );
+    return $map{$value};
 }
 
 sub volumeMirrorStatusLookup {
     my $value = shift;
-    my $text  = '';
-    if ( $value == 1 )  { $text = 'invalid'; }
-    if ( $value == 2 )  { $text = 'uninitialized'; }
-    if ( $value == 3 )  { $text = 'needcpcheck'; }
-    if ( $value == 4 )  { $text = 'cpcheckwait'; }
-    if ( $value == 5 )  { $text = 'unmirrored'; }
-    if ( $value == 6 )  { $text = 'normal'; }
-    if ( $value == 7 )  { $text = 'degraded'; }
-    if ( $value == 8 )  { $text = 'resyncing'; }
-    if ( $value == 9 )  { $text = 'failed'; }
-    if ( $value == 10 ) { $text = 'limbo'; }
-    return $text;
+    my %map   = (
+        1  => 'invalid',
+        2  => 'uninitialized',
+        3  => 'needcpcheck',
+        4  => 'cpcheckwait',
+        5  => 'unmirrored',
+        6  => 'normal',
+        7  => 'degraded',
+        8  => 'resyncing',
+        9  => 'failed',
+        10 => 'limbo',
+    );
+    return $map{$value};
 }
 
 sub volumeTypeLookup {
     my $value = shift;
-    my $text  = '';
-    if ( $value == 1 ) { $text = 'traditional'; }
-    if ( $value == 2 ) { $text = 'flexible'; }
-    if ( $value == 3 ) { $text = 'aggregate'; }
-    return $text;
+    my %map   = (
+        1 => 'traditional',
+        2 => 'flexible',
+        3 => 'aggregate',
+    );
+    return $map{$value};
 }
 
 sub isSnapshot {
@@ -656,14 +659,15 @@ sub isSnapshot {
 
 sub quotaTypeLookup {
     my $value = shift;
-    my $text  = '';
-    if ( $value == 1 ) { $text = 'user'; }
-    if ( $value == 2 ) { $text = 'group'; }
-    if ( $value == 3 ) { $text = 'tree'; }
-    if ( $value == 4 ) { $text = 'userdefault'; }
-    if ( $value == 5 ) { $text = 'groupdefault'; }
-    if ( $value == 6 ) { $text = 'unknown'; }
-    return $text;
+    my %map   = (
+        1 => 'user',
+        2 => 'group',
+        3 => 'tree',
+        4 => 'userdefault',
+        5 => 'groupdefault',
+        6 => 'unknown',
+    );
+    return $map{$value};
 }
 
 sub getDiskHealthInfo {
