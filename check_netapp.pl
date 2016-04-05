@@ -530,43 +530,39 @@ sub checkVolumeInodes {
     }
 }
 
-sub getQuotaInfo {
-    my $result = snmpGetTable( "$baseOID.1.4.6", "quota information", 1 );
-    my %quotainfo = ();
-    foreach my $line ( keys %{$result} ) {
-        my @data   = split /\./, $line;
-        my $item   = $data[11];
-        my $vol    = $data[12];
-        my $idx    = $data[13];
-        my $volidx = $vol . "_" . $idx;
-        my $value  = $result->{$line};
-        if ( $item == 2 ) { $quotainfo{$volidx}{Type} = $value; $quotainfo{$volidx}{TypeText} = quotaTypeLookup($value); }
-        if ( $item == 3 ) { $quotainfo{$volidx}{ID} = $value; }
-        if ( $item == 6 )  { $quotainfo{$volidx}{BytesUnlimited} = $value; }
-        if ( $item == 9 )  { $quotainfo{$volidx}{FilesUsed}      = $value; }
-        if ( $item == 10 ) { $quotainfo{$volidx}{FilesUnlimited} = $value; }
-        if ( $item == 11 ) { $quotainfo{$volidx}{FilesLimit}     = $value; }
-        if ( $item == 12 ) { $quotainfo{$volidx}{PathName}       = $value; }
-        if ( $item == 14 ) { $quotainfo{$volidx}{QTree}          = $value; }
-        if ( $item == 15 ) { $quotainfo{$volidx}{IDType}         = $value; }
-        if ( $item == 16 ) { $quotainfo{$volidx}{SID}            = $value; }
-        if ( $item == 25 ) { $quotainfo{$volidx}{BytesUsed}      = $value; }
-        if ( $item == 26 ) { $quotainfo{$volidx}{BytesLimit}     = $value; }
+sub getClusteredFailoverInfo {
+    my %cfinfo = ();
+    for ( my $oid = 1 ; $oid <= 8 ; $oid++ ) {
+        my $data = snmpGetRequest( "$baseOID.1.2.3.$oid.0", "CF OID $oid", 0 );
+        if ( $oid == 1 ) { $cfinfo{Settings}                = $data; }
+        if ( $oid == 2 ) { $cfinfo{State}                   = $data; }
+        if ( $oid == 3 ) { $cfinfo{CannotTakeoverCause}     = $data; }
+        if ( $oid == 4 ) { $cfinfo{PartnerStatus}           = $data; }
+        if ( $oid == 5 ) { $cfinfo{PartnerLastStatusUpdate} = $data; }
+        if ( $oid == 6 ) { $cfinfo{PartnerName}             = $data; }
+        if ( $oid == 7 ) { $cfinfo{PartnerSysid}            = $data; }
+        if ( $oid == 8 ) { $cfinfo{InterconnectStatus}      = $data; }
     }
+    return %cfinfo;
+}
 
-    foreach my $this ( keys %quotainfo ) {
-        $quotainfo{$this}{HumanBytesUsed}  = format_bytes( $quotainfo{$this}{BytesUsed} );
-        $quotainfo{$this}{HumanBytesLimit} = format_bytes( $quotainfo{$this}{BytesLimit} );
-        eval {
-            $quotainfo{$this}{PcentBytesUsed} = sprintf( "%.3f", $quotainfo{$this}{BytesUsed} / $quotainfo{$this}{BytesLimit} * 100 );
-            $quotainfo{$this}{PcentFilesUsed} = sprintf( "%.3f", $quotainfo{$this}{FilesUsed} / $quotainfo{$this}{FilesLimit} * 100 );
-        };
-        $quotainfo{$this}{RealID} = '<Unknown>';
-        if ( $quotainfo{$this}{IDType} == 1 ) { $quotainfo{$this}{RealID} = $quotainfo{$this}{ID}; }
-        if ( $quotainfo{$this}{IDType} == 2 ) { $quotainfo{$this}{RealID} = $quotainfo{$this}{SID}; }
+sub getDiskHealthInfo {
+    my %dhinfo = ();
+    for ( my $oid = 1 ; $oid <= 11 ; $oid++ ) {
+        my $data = snmpGetRequest( "$baseOID.1.6.4.$oid.0", "disk OID $oid", 0 );
+        if ( $oid == 1 )  { $dhinfo{Total}                = $data; }
+        if ( $oid == 2 )  { $dhinfo{Active}               = $data; }
+        if ( $oid == 3 )  { $dhinfo{Reconstructing}       = $data; }
+        if ( $oid == 4 )  { $dhinfo{ReconstructingParity} = $data; }
+        if ( $oid == 5 )  { $dhinfo{VerifyingParity}      = $data; }
+        if ( $oid == 6 )  { $dhinfo{Scrubbing}            = $data; }
+        if ( $oid == 7 )  { $dhinfo{Failed}               = $data; }
+        if ( $oid == 8 )  { $dhinfo{Spare}                = $data; }
+        if ( $oid == 9 )  { $dhinfo{AddingSpare}          = $data; }
+        if ( $oid == 10 ) { $dhinfo{FailedMessage}        = $data; }
+        if ( $oid == 11 ) { $dhinfo{Prefailed}            = $data; }
     }
-
-    return %quotainfo;
+    return %dhinfo;
 }
 
 sub getDiskSpaceInfo {
@@ -605,116 +601,6 @@ sub getDiskSpaceInfo {
         $dfinfo{$fs}{isAggregate} = $dfinfo{$fs}{Type} == 3 ? 1 : 0;
     }
     return %dfinfo;
-}
-
-sub volumeStatusLookup {
-    my $value = shift;
-    my %map   = (
-        1  => 'unmounted',
-        2  => 'mounted',
-        3  => 'frozen',
-        4  => 'destroying',
-        5  => 'creating',
-        6  => 'mounting',
-        7  => 'unmounting',
-        8  => 'nofsinfo',
-        9  => 'replaying',
-        10 => 'replayed',
-    );
-    return $map{$value};
-}
-
-sub volumeMirrorStatusLookup {
-    my $value = shift;
-    my %map   = (
-        1  => 'invalid',
-        2  => 'uninitialized',
-        3  => 'needcpcheck',
-        4  => 'cpcheckwait',
-        5  => 'unmirrored',
-        6  => 'normal',
-        7  => 'degraded',
-        8  => 'resyncing',
-        9  => 'failed',
-        10 => 'limbo',
-    );
-    return $map{$value};
-}
-
-sub volumeTypeLookup {
-    my $value = shift;
-    my %map   = (
-        1 => 'traditional',
-        2 => 'flexible',
-        3 => 'aggregate',
-    );
-    return $map{$value};
-}
-
-sub isSnapshot {
-    my $name = shift;
-    return $name =~ /\/\.snapshot$/ ? 1 : 0;
-}
-
-sub quotaTypeLookup {
-    my $value = shift;
-    my %map   = (
-        1 => 'user',
-        2 => 'group',
-        3 => 'tree',
-        4 => 'userdefault',
-        5 => 'groupdefault',
-        6 => 'unknown',
-    );
-    return $map{$value};
-}
-
-sub getDiskHealthInfo {
-    my %dhinfo = ();
-    for ( my $oid = 1 ; $oid <= 11 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.6.4.$oid.0", "disk OID $oid", 0 );
-        if ( $oid == 1 )  { $dhinfo{Total}                = $data; }
-        if ( $oid == 2 )  { $dhinfo{Active}               = $data; }
-        if ( $oid == 3 )  { $dhinfo{Reconstructing}       = $data; }
-        if ( $oid == 4 )  { $dhinfo{ReconstructingParity} = $data; }
-        if ( $oid == 5 )  { $dhinfo{VerifyingParity}      = $data; }
-        if ( $oid == 6 )  { $dhinfo{Scrubbing}            = $data; }
-        if ( $oid == 7 )  { $dhinfo{Failed}               = $data; }
-        if ( $oid == 8 )  { $dhinfo{Spare}                = $data; }
-        if ( $oid == 9 )  { $dhinfo{AddingSpare}          = $data; }
-        if ( $oid == 10 ) { $dhinfo{FailedMessage}        = $data; }
-        if ( $oid == 11 ) { $dhinfo{Prefailed}            = $data; }
-    }
-    return %dhinfo;
-}
-
-sub getClusteredFailoverInfo {
-    my %cfinfo = ();
-    for ( my $oid = 1 ; $oid <= 8 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.2.3.$oid.0", "CF OID $oid", 0 );
-        if ( $oid == 1 ) { $cfinfo{Settings}                = $data; }
-        if ( $oid == 2 ) { $cfinfo{State}                   = $data; }
-        if ( $oid == 3 ) { $cfinfo{CannotTakeoverCause}     = $data; }
-        if ( $oid == 4 ) { $cfinfo{PartnerStatus}           = $data; }
-        if ( $oid == 5 ) { $cfinfo{PartnerLastStatusUpdate} = $data; }
-        if ( $oid == 6 ) { $cfinfo{PartnerName}             = $data; }
-        if ( $oid == 7 ) { $cfinfo{PartnerSysid}            = $data; }
-        if ( $oid == 8 ) { $cfinfo{InterconnectStatus}      = $data; }
-    }
-    return %cfinfo;
-}
-
-sub getEnvironmentInfo {
-    my %einfo = ();
-    for ( my $oid = 1 ; $oid <= 5 ; $oid++ ) {
-        my $data = snmpGetRequest( "$baseOID.1.2.4.$oid.0", "environment OID $oid", 0 );
-        if ( $oid == 1 ) { $einfo{OverTemperature}  = $data; }
-        if ( $oid == 2 ) { $einfo{FailedFanCount}   = $data; }
-        if ( $oid == 3 ) { $einfo{FailedFanMessage} = $data; }
-        if ( $oid == 4 ) { $einfo{FailedPSUCount}   = $data; }
-        if ( $oid == 5 ) { $einfo{FailedPSUMessage} = $data; }
-    }
-    return %einfo;
 }
 
 sub getEnclosureInfo {
@@ -814,6 +700,114 @@ sub getEnclosureInfo {
     return %encinfo;
 }
 
+sub getEnvironmentInfo {
+    my %einfo = ();
+    for ( my $oid = 1 ; $oid <= 5 ; $oid++ ) {
+        my $data = snmpGetRequest( "$baseOID.1.2.4.$oid.0", "environment OID $oid", 0 );
+        if ( $oid == 1 ) { $einfo{OverTemperature}  = $data; }
+        if ( $oid == 2 ) { $einfo{FailedFanCount}   = $data; }
+        if ( $oid == 3 ) { $einfo{FailedFanMessage} = $data; }
+        if ( $oid == 4 ) { $einfo{FailedPSUCount}   = $data; }
+        if ( $oid == 5 ) { $einfo{FailedPSUMessage} = $data; }
+    }
+    return %einfo;
+}
+
+sub getQuotaInfo {
+    my $result = snmpGetTable( "$baseOID.1.4.6", "quota information", 1 );
+    my %quotainfo = ();
+    foreach my $line ( keys %{$result} ) {
+        my @data   = split /\./, $line;
+        my $item   = $data[11];
+        my $vol    = $data[12];
+        my $idx    = $data[13];
+        my $volidx = $vol . "_" . $idx;
+        my $value  = $result->{$line};
+        if ( $item == 2 ) { $quotainfo{$volidx}{Type} = $value; $quotainfo{$volidx}{TypeText} = quotaTypeLookup($value); }
+        if ( $item == 3 ) { $quotainfo{$volidx}{ID} = $value; }
+        if ( $item == 6 )  { $quotainfo{$volidx}{BytesUnlimited} = $value; }
+        if ( $item == 9 )  { $quotainfo{$volidx}{FilesUsed}      = $value; }
+        if ( $item == 10 ) { $quotainfo{$volidx}{FilesUnlimited} = $value; }
+        if ( $item == 11 ) { $quotainfo{$volidx}{FilesLimit}     = $value; }
+        if ( $item == 12 ) { $quotainfo{$volidx}{PathName}       = $value; }
+        if ( $item == 14 ) { $quotainfo{$volidx}{QTree}          = $value; }
+        if ( $item == 15 ) { $quotainfo{$volidx}{IDType}         = $value; }
+        if ( $item == 16 ) { $quotainfo{$volidx}{SID}            = $value; }
+        if ( $item == 25 ) { $quotainfo{$volidx}{BytesUsed}      = $value; }
+        if ( $item == 26 ) { $quotainfo{$volidx}{BytesLimit}     = $value; }
+    }
+
+    foreach my $this ( keys %quotainfo ) {
+        $quotainfo{$this}{HumanBytesUsed}  = format_bytes( $quotainfo{$this}{BytesUsed} );
+        $quotainfo{$this}{HumanBytesLimit} = format_bytes( $quotainfo{$this}{BytesLimit} );
+        eval {
+            $quotainfo{$this}{PcentBytesUsed} = sprintf( "%.3f", $quotainfo{$this}{BytesUsed} / $quotainfo{$this}{BytesLimit} * 100 );
+            $quotainfo{$this}{PcentFilesUsed} = sprintf( "%.3f", $quotainfo{$this}{FilesUsed} / $quotainfo{$this}{FilesLimit} * 100 );
+        };
+        $quotainfo{$this}{RealID} = '<Unknown>';
+        if ( $quotainfo{$this}{IDType} == 1 ) { $quotainfo{$this}{RealID} = $quotainfo{$this}{ID}; }
+        if ( $quotainfo{$this}{IDType} == 2 ) { $quotainfo{$this}{RealID} = $quotainfo{$this}{SID}; }
+    }
+    return %quotainfo;
+}
+
+sub quotaTypeLookup {
+    my $value = shift;
+    my %map   = (
+        1 => 'user',
+        2 => 'group',
+        3 => 'tree',
+        4 => 'userdefault',
+        5 => 'groupdefault',
+        6 => 'unknown',
+    );
+    return $map{$value};
+}
+
+sub volumeMirrorStatusLookup {
+    my $value = shift;
+    my %map   = (
+        1  => 'invalid',
+        2  => 'uninitialized',
+        3  => 'needcpcheck',
+        4  => 'cpcheckwait',
+        5  => 'unmirrored',
+        6  => 'normal',
+        7  => 'degraded',
+        8  => 'resyncing',
+        9  => 'failed',
+        10 => 'limbo',
+    );
+    return $map{$value};
+}
+
+sub volumeStatusLookup {
+    my $value = shift;
+    my %map   = (
+        1  => 'unmounted',
+        2  => 'mounted',
+        3  => 'frozen',
+        4  => 'destroying',
+        5  => 'creating',
+        6  => 'mounting',
+        7  => 'unmounting',
+        8  => 'nofsinfo',
+        9  => 'replaying',
+        10 => 'replayed',
+    );
+    return $map{$value};
+}
+
+sub volumeTypeLookup {
+    my $value = shift;
+    my %map   = (
+        1 => 'traditional',
+        2 => 'flexible',
+        3 => 'aggregate',
+    );
+    return $map{$value};
+}
+
 sub snmpGetRequest {
     my ( $oid, $itemdesc, $undef_on_fail ) = @_;
     my $result = $session->get_request("$oid");
@@ -831,6 +825,11 @@ sub snmpGetTable {
         $plugin->nagios_exit( UNKNOWN, "Cannot read $itemdesc ($oid): " . $session->error ) unless defined $result;
     }
     return $result;
+}
+
+sub isSnapshot {
+    my $name = shift;
+    return $name =~ /\/\.snapshot$/ ? 1 : 0;
 }
 
 sub enclosuresPresent {
