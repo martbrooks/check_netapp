@@ -44,6 +44,7 @@ my ( $opt, $usage ) = describe_options(
                 [ 'nvrambattery'       => 'Check NVRAM battery status.' ],
                 [ 'overtemperature'    => 'Check environment over temperature status.' ],
                 [ 'psuhealth'          => 'Check PSU health.' ],
+                [ 'snapshotcount'      => 'Check volume snapshot count.' ],
                 [ 'treebytequotas'     => 'Check tree byte quotas.' ],
                 [ 'treefilequotas'     => 'Check tree file quotas.' ],
                 [ 'uptime'             => 'Check system uptime.' ],
@@ -123,6 +124,7 @@ my $dispatch = {
     nvrambattery       => \&checkNVRAMBattery,
     overtemperature    => \&checkOverTemperature,
     psuhealth          => \&checkPSUHealth,
+    snapshotcount      => \&checkSnapshotCount,
     treebytequotas     => \&checkTreeByteQuotas,
     treefilequotas     => \&checkTreeFileQuotas,
     uptime             => \&checkUptime,
@@ -363,6 +365,22 @@ sub checkPSUHealth {
     my %einfo = getEnvironmentInfo();
     my ( $exitcode, $message ) = ( $exitcode = $einfo{FailedPSUCount} == 0 ? OK : CRITICAL, $einfo{FailedPSUMessage} );
     $plugin->add_message( $exitcode, $message );
+}
+
+sub checkSnapshotCount {
+    my %snapshotinfo  = getSnapshotInfo();
+    my %snapshotcount = ();
+    foreach my $idx ( keys %snapshotinfo ) {
+        my $volumename = $snapshotinfo{$idx}{VolumeName};
+        $snapshotcount{$volumename}++;
+    }
+    foreach my $idx ( sort keys %snapshotcount ) {
+        my $count   = $snapshotcount{$idx};
+        my $message = "$idx has $count snapshot";
+        $message .= $count != 1 ? 's.' : '.';
+        my $exitcode = $plugin->check_threshold( check => $count, warning => $warning, critical => $critical );
+        $plugin->add_message( $exitcode, $message );
+    }
 }
 
 sub checkTreeByteQuotas {
@@ -749,6 +767,29 @@ sub getQuotaInfo {
         if ( $quotainfo{$this}{IDType} == 2 ) { $quotainfo{$this}{RealID} = $quotainfo{$this}{SID}; }
     }
     return %quotainfo;
+}
+
+sub getSnapshotInfo {
+    my $result = snmpGetTable( "$baseOID.1.5.5.2", "snapshot information", 0 );
+    my %snapshotinfo = ();
+    foreach my $line ( keys %{$result} ) {
+        my @data   = split /\./, $line;
+        my $item   = $data[12];
+        my $vol    = $data[13];
+        my $idx    = $data[14];
+        my $volidx = $vol . "_" . $idx;
+        my $value  = $result->{$line};
+        if ( $item == 2 )  { $snapshotinfo{$volidx}{Month}      = $value; }
+        if ( $item == 3 )  { $snapshotinfo{$volidx}{Day}        = $value; }
+        if ( $item == 4 )  { $snapshotinfo{$volidx}{Hour}       = $value; }
+        if ( $item == 5 )  { $snapshotinfo{$volidx}{Minutes}    = $value; }
+        if ( $item == 6 )  { $snapshotinfo{$volidx}{Name}       = $value; }
+        if ( $item == 7 )  { $snapshotinfo{$volidx}{Volume}     = $value; }
+        if ( $item == 8 )  { $snapshotinfo{$volidx}{Number}     = $value; }
+        if ( $item == 9 )  { $snapshotinfo{$volidx}{VolumeName} = $value; }
+        if ( $item == 10 ) { $snapshotinfo{$volidx}{Type}       = $value; }
+    }
+    return %snapshotinfo;
 }
 
 sub quotaTypeLookup {
