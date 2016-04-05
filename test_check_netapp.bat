@@ -11,6 +11,7 @@ check_netapp.pl --hostname %1 --warning 70 --critical 90 --globalstatus
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --nvrambattery
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --overtemperature
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --psuhealth
+check_netapp.pl --hostname %1 --warning 70 --critical 90 --snapshotcount
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --treebytequotas
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --treefilequotas
 check_netapp.pl --hostname %1 --warning 70 --critical 90 --uptime
