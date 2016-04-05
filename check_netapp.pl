@@ -141,191 +141,6 @@ if ( exists $dispatch->{$metric} ) {
 my ( $exitcode, $message ) = $plugin->check_messages;
 $plugin->nagios_exit( $exitcode, $message );
 
-sub checkEncFanHealth {
-    my $enccount = enclosuresPresent();
-    return if $enccount == 0;
-    my %encinfo = getEnclosureInfo();
-    my ( $errorcount, $totpresent ) = ( 0, 0 );
-    foreach my $this ( keys %encinfo ) {
-        my $present = $encinfo{$this}{FansPresentCount};
-        my $failed  = $encinfo{$this}{FansFailedCount};
-        $totpresent += $present;
-        if ( $failed != 0 ) {
-            my $message = "Enclosure $this has $failed failed fan";
-            $message .= $failed != 1 ? 's' : '';
-            $message .= '.';
-            $plugin->add_message( CRITICAL, $message );
-            $errorcount++;
-        }
-    }
-
-    if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$enccount enclosures, $totpresent fans present and OK." );
-    }
-
-}
-
-sub checkEncPSUHealth {
-    my $enccount = enclosuresPresent();
-    return if $enccount == 0;
-    my %encinfo = getEnclosureInfo();
-    my ( $errorcount, $totpresent ) = ( 0, 0 );
-    foreach my $this ( keys %encinfo ) {
-        my $present = $encinfo{$this}{PowerSuppliesPresentCount};
-        my $failed  = $encinfo{$this}{PowerSuppliesFailedCount};
-        $totpresent += $present;
-        if ( $failed != 0 ) {
-            my $message = "Enclosure $this has $failed failed power suppl";
-            $message .= $failed == 1 ? 'y' : 'ies';
-            $message .= '.';
-            $plugin->add_message( CRITICAL, $message );
-            $errorcount++;
-        }
-    }
-
-    if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$enccount enclosures, $totpresent PSUs present and OK." );
-    }
-
-}
-
-sub checkAutosupport {
-    my $message = 'Autosupport status is okay.';
-    my $state   = snmpGetRequest( "$baseOID.1.2.7.1.0", "autosupport status", 0 );
-    my $success = snmpGetRequest( "$baseOID.1.2.7.3.0", "autosupport successful sends", 0 );
-    my $failed  = snmpGetRequest( "$baseOID.1.2.7.4.0", "autosupport failed sends", 0 );
-    my $total   = $success + $failed;
-    if ( $state != 1 ) {
-        $message = snmpGetRequest( "$baseOID.1.2.7.2.0", "autosupport status message", 0 );
-        $message =~ s/\n+/ /g;
-    }
-    my $exitcode = $state == 1 ? OK : CRITICAL;
-    $message .= " $success/$total successful autosupport sends.";
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkGlobalStatus {
-    my $message = 'Global status is okay.';
-    my $state = snmpGetRequest( "$baseOID.1.2.2.4.0", "global status", 0 );
-    if ( $state != 3 ) {
-        $message = snmpGetRequest( "$baseOID.1.2.2.25.0", "global status message", 0 );
-        $message =~ s/\n+/ /g;
-    }
-    my $exitcode = $state == 3 ? OK : CRITICAL;
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkCFInterconnect {
-    my %cfinfo  = getClusteredFailoverInfo();
-    my $state   = $cfinfo{InterconnectStatus};
-    my $message = 'Interconnect is ';
-    if ( $state == 1 ) { $message .= 'not present.';      $exitcode = OK; }
-    if ( $state == 2 ) { $message .= 'down.';             $exitcode = CRITICAL; }
-    if ( $state == 3 ) { $message .= 'partially failed.'; $exitcode = WARNING; }
-    if ( $state == 4 ) { $message .= 'up.';               $exitcode = OK; }
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkCFPartner {
-    my %cfinfo = getClusteredFailoverInfo();
-    if ( $cfinfo{Settings} == 1 ) {
-        $plugin->add_message( OK, 'Clustered failover not configured.' );
-        return;
-    }
-    my $name    = $cfinfo{PartnerName} || '';
-    my $state   = $cfinfo{State};
-    my $message = "Clustered failover partner ";
-    if ( $name ne '' ) { $message .= "($name) "; }
-    if ( $state == 1 ) { $message .= 'may be down.';         $exitcode = WARNING; }
-    if ( $state == 2 ) { $message .= 'is okay.';             $exitcode = OK; }
-    if ( $state == 3 ) { $message .= 'is dead.';             $exitcode = CRITICAL; }
-    if ( $state == 4 ) { $message .= 'has been taken over.'; $exitcode = WARNING; }
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkFanHealth {
-    my %einfo = getEnvironmentInfo();
-    my ( $exitcode, $message ) = ( $exitcode = $einfo{FailedFanCount} == 0 ? OK : CRITICAL, $einfo{FailedFanMessage} );
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkPSUHealth {
-    my %einfo = getEnvironmentInfo();
-    my ( $exitcode, $message ) = ( $exitcode = $einfo{FailedPSUCount} == 0 ? OK : CRITICAL, $einfo{FailedPSUMessage} );
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkOverTemperature {
-    my %einfo    = getEnvironmentInfo();
-    my $exitcode = $einfo{OverTemperature} == 1 ? OK : CRITICAL;
-    my $message  = 'Environment is ';
-    if ( $exitcode == OK ) {
-        $message .= 'within ';
-    } else {
-        $message .= 'outside ';
-    }
-    $message .= 'temperature limits.';
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkNVRAMBattery {
-    my $exitcode;
-    my $state = snmpGetRequest( "$baseOID.1.2.5.1.0", "NVRAM battery status", 0 );
-    my $message = 'NVRAM battery is ';
-    if ( $state == 1 ) { $message .= 'OK';                   $exitcode = OK; }
-    if ( $state == 2 ) { $message .= 'partially discharged'; $exitcode = WARNING; }
-    if ( $state == 3 ) { $message .= 'full discharged';      $exitcode = CRITICAL; }
-    if ( $state == 4 ) { $message .= 'not present';          $exitcode = WARNING; }
-    if ( $state == 5 ) { $message .= 'near end of life';     $exitcode = WARNING; }
-    if ( $state == 6 ) { $message .= 'at end of life';       $exitcode = CRITICAL; }
-    if ( $state == 7 ) { $message .= 'unknown';              $exitcode = WARNING; }
-    if ( $state == 8 ) { $message .= 'overcharged';          $exitcode = WARNING; }
-    if ( $state == 9 ) { $message .= 'fully charged';        $exitcode = WARNING; }
-    $message .= '.';
-    $plugin->add_message( $exitcode, $message );
-}
-
-sub checkDiskHealth {
-    my ( $exitcode, $message );
-    my $errorcount = 0;
-    my %dhinfo     = getDiskHealthInfo();
-
-    if ( $dhinfo{Failed} > 0 ) {
-        $errorcount++;
-        $plugin->add_message( CRITICAL, $dhinfo{Failed} . " failed disks: $dhinfo{FailedMessage}" );
-    }
-
-    if ( $dhinfo{Reconstructing} > 0 ) {
-        $errorcount++;
-        $plugin->add_message( WARNING, $dhinfo{Reconstructing} . ' disk(s) reconstructing.' );
-    }
-
-    if ( $dhinfo{ReconstructingParity} > 0 ) {
-        $errorcount++;
-        $plugin->add_message( WARNING, $dhinfo{ReconstructingParity} . ' disk(s) parity reconstructing.' );
-    }
-
-    if ( $dhinfo{AddingSpare} > 0 ) {
-        $errorcount++;
-        $plugin->add_message( WARNING, $dhinfo{AddingSpare} . ' spare disk(s) being added.' );
-    }
-
-    if ( $errorcount == 0 ) {
-        $plugin->add_message( OK, "$dhinfo{Total} disks present, $dhinfo{Active} active." );
-    }
-}
-
-sub checkUptime {
-    my ( $exitcode, $message );
-    $session->translate(0);
-    my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime", 0 );
-    $rawuptime = int( $rawuptime / 100 );
-    my $uptime = parse_duration("$rawuptime seconds");
-    $exitcode = $plugin->check_threshold( check => $rawuptime / 3600, warning => $warning, critical => $critical );
-    $message = "System uptime is " . duration( $uptime, 3 ) . '.';
-    $plugin->add_message( $exitcode, $message );
-}
-
 sub checkAggregateBytes {
     my %dfinfo = getDiskSpaceInfo();
     my ( $errorcount, $aggcount ) = ( 0, 0 );
@@ -376,54 +191,178 @@ sub checkAggregateInodes {
     }
 }
 
-sub checkVolumeBytes {
-    my %dfinfo = getDiskSpaceInfo();
-    my ( $errorcount, $volcount ) = ( 0, 0 );
-    foreach my $this ( keys %dfinfo ) {
-        next if ( $dfinfo{$this}{isAggregate} == 1 || $dfinfo{$this}{isSnapshot} == 1 );
-        my $usedbytes = $dfinfo{$this}{PcentUsedBytes} || "0";
-        my $hused     = $dfinfo{$this}{HumanUsedBytes};
-        my $htotal    = $dfinfo{$this}{HumanTotalBytes};
-        my $name      = $dfinfo{$this}{Name};
-        $volcount++;
-        $exitcode = $plugin->check_threshold( check => $usedbytes, warning => $warning, critical => $critical );
-        if ( $exitcode != OK ) {
-            $plugin->add_message( $exitcode, "Volume \'$name\' byte use is $hused/$htotal ($usedbytes%)." );
-            $errorcount++;
-        }
+sub checkAutosupport {
+    my $message = 'Autosupport status is okay.';
+    my $state   = snmpGetRequest( "$baseOID.1.2.7.1.0", "autosupport status", 0 );
+    my $success = snmpGetRequest( "$baseOID.1.2.7.3.0", "autosupport successful sends", 0 );
+    my $failed  = snmpGetRequest( "$baseOID.1.2.7.4.0", "autosupport failed sends", 0 );
+    my $total   = $success + $failed;
+    if ( $state != 1 ) {
+        $message = snmpGetRequest( "$baseOID.1.2.7.2.0", "autosupport status message", 0 );
+        $message =~ s/\n+/ /g;
+    }
+    my $exitcode = $state == 1 ? OK : CRITICAL;
+    $message .= " $success/$total successful autosupport sends.";
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkCFInterconnect {
+    my %cfinfo  = getClusteredFailoverInfo();
+    my $state   = $cfinfo{InterconnectStatus};
+    my $message = 'Interconnect is ';
+    if ( $state == 1 ) { $message .= 'not present.';      $exitcode = OK; }
+    if ( $state == 2 ) { $message .= 'down.';             $exitcode = CRITICAL; }
+    if ( $state == 3 ) { $message .= 'partially failed.'; $exitcode = WARNING; }
+    if ( $state == 4 ) { $message .= 'up.';               $exitcode = OK; }
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkCFPartner {
+    my %cfinfo = getClusteredFailoverInfo();
+    if ( $cfinfo{Settings} == 1 ) {
+        $plugin->add_message( OK, 'Clustered failover not configured.' );
+        return;
+    }
+    my $name    = $cfinfo{PartnerName} || '';
+    my $state   = $cfinfo{State};
+    my $message = "Clustered failover partner ";
+    if ( $name ne '' ) { $message .= "($name) "; }
+    if ( $state == 1 ) { $message .= 'may be down.';         $exitcode = WARNING; }
+    if ( $state == 2 ) { $message .= 'is okay.';             $exitcode = OK; }
+    if ( $state == 3 ) { $message .= 'is dead.';             $exitcode = CRITICAL; }
+    if ( $state == 4 ) { $message .= 'has been taken over.'; $exitcode = WARNING; }
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkDiskHealth {
+    my ( $exitcode, $message );
+    my $errorcount = 0;
+    my %dhinfo     = getDiskHealthInfo();
+
+    if ( $dhinfo{Failed} > 0 ) {
+        $errorcount++;
+        $plugin->add_message( CRITICAL, $dhinfo{Failed} . " failed disks: $dhinfo{FailedMessage}" );
+    }
+
+    if ( $dhinfo{Reconstructing} > 0 ) {
+        $errorcount++;
+        $plugin->add_message( WARNING, $dhinfo{Reconstructing} . ' disk(s) reconstructing.' );
+    }
+
+    if ( $dhinfo{ReconstructingParity} > 0 ) {
+        $errorcount++;
+        $plugin->add_message( WARNING, $dhinfo{ReconstructingParity} . ' disk(s) parity reconstructing.' );
+    }
+
+    if ( $dhinfo{AddingSpare} > 0 ) {
+        $errorcount++;
+        $plugin->add_message( WARNING, $dhinfo{AddingSpare} . ' spare disk(s) being added.' );
     }
 
     if ( $errorcount == 0 ) {
-        my $message = "$volcount volume";
-        $message .= $volcount == 1 ? ' is OK' : 's are OK';
-        $message .= '.';
-        $plugin->add_message( OK, $message );
+        $plugin->add_message( OK, "$dhinfo{Total} disks present, $dhinfo{Active} active." );
     }
 }
 
-sub checkVolumeInodes {
-    my %dfinfo = getDiskSpaceInfo();
-    my ( $errorcount, $volcount ) = ( 0, 0 );
-    foreach my $this ( keys %dfinfo ) {
-        next if ( $dfinfo{$this}{isAggregate} == 1 || $dfinfo{$this}{isSnapshot} == 1 );
-        my $usedinodes = $dfinfo{$this}{PcentUsedInodes} || "0";
-        my $used       = $dfinfo{$this}{UsedInodes};
-        my $total      = $dfinfo{$this}{TotalInodes};
-        my $name       = $dfinfo{$this}{Name};
-        $volcount++;
-        $exitcode = $plugin->check_threshold( check => $usedinodes, warning => $warning, critical => $critical );
-        if ( $exitcode != OK ) {
-            $plugin->add_message( $exitcode, "Volume \'$name\' inode use is $used/$total ($usedinodes%)." );
+sub checkEncFanHealth {
+    my $enccount = enclosuresPresent();
+    return if $enccount == 0;
+    my %encinfo = getEnclosureInfo();
+    my ( $errorcount, $totpresent ) = ( 0, 0 );
+    foreach my $this ( keys %encinfo ) {
+        my $present = $encinfo{$this}{FansPresentCount};
+        my $failed  = $encinfo{$this}{FansFailedCount};
+        $totpresent += $present;
+        if ( $failed != 0 ) {
+            my $message = "Enclosure $this has $failed failed fan";
+            $message .= $failed != 1 ? 's' : '';
+            $message .= '.';
+            $plugin->add_message( CRITICAL, $message );
             $errorcount++;
         }
     }
 
     if ( $errorcount == 0 ) {
-        my $message = "$volcount volume";
-        $message .= $volcount == 1 ? ' is OK' : 's are OK';
-        $message .= '.';
-        $plugin->add_message( OK, $message );
+        $plugin->add_message( OK, "$enccount enclosures, $totpresent fans present and OK." );
     }
+
+}
+
+sub checkEncPSUHealth {
+    my $enccount = enclosuresPresent();
+    return if $enccount == 0;
+    my %encinfo = getEnclosureInfo();
+    my ( $errorcount, $totpresent ) = ( 0, 0 );
+    foreach my $this ( keys %encinfo ) {
+        my $present = $encinfo{$this}{PowerSuppliesPresentCount};
+        my $failed  = $encinfo{$this}{PowerSuppliesFailedCount};
+        $totpresent += $present;
+        if ( $failed != 0 ) {
+            my $message = "Enclosure $this has $failed failed power suppl";
+            $message .= $failed == 1 ? 'y' : 'ies';
+            $message .= '.';
+            $plugin->add_message( CRITICAL, $message );
+            $errorcount++;
+        }
+    }
+
+    if ( $errorcount == 0 ) {
+        $plugin->add_message( OK, "$enccount enclosures, $totpresent PSUs present and OK." );
+    }
+
+}
+
+sub checkFanHealth {
+    my %einfo = getEnvironmentInfo();
+    my ( $exitcode, $message ) = ( $exitcode = $einfo{FailedFanCount} == 0 ? OK : CRITICAL, $einfo{FailedFanMessage} );
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkGlobalStatus {
+    my $message = 'Global status is okay.';
+    my $state = snmpGetRequest( "$baseOID.1.2.2.4.0", "global status", 0 );
+    if ( $state != 3 ) {
+        $message = snmpGetRequest( "$baseOID.1.2.2.25.0", "global status message", 0 );
+        $message =~ s/\n+/ /g;
+    }
+    my $exitcode = $state == 3 ? OK : CRITICAL;
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkNVRAMBattery {
+    my $exitcode;
+    my $state = snmpGetRequest( "$baseOID.1.2.5.1.0", "NVRAM battery status", 0 );
+    my $message = 'NVRAM battery is ';
+    if ( $state == 1 ) { $message .= 'OK';                   $exitcode = OK; }
+    if ( $state == 2 ) { $message .= 'partially discharged'; $exitcode = WARNING; }
+    if ( $state == 3 ) { $message .= 'full discharged';      $exitcode = CRITICAL; }
+    if ( $state == 4 ) { $message .= 'not present';          $exitcode = WARNING; }
+    if ( $state == 5 ) { $message .= 'near end of life';     $exitcode = WARNING; }
+    if ( $state == 6 ) { $message .= 'at end of life';       $exitcode = CRITICAL; }
+    if ( $state == 7 ) { $message .= 'unknown';              $exitcode = WARNING; }
+    if ( $state == 8 ) { $message .= 'overcharged';          $exitcode = WARNING; }
+    if ( $state == 9 ) { $message .= 'fully charged';        $exitcode = WARNING; }
+    $message .= '.';
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkOverTemperature {
+    my %einfo    = getEnvironmentInfo();
+    my $exitcode = $einfo{OverTemperature} == 1 ? OK : CRITICAL;
+    my $message  = 'Environment is ';
+    if ( $exitcode == OK ) {
+        $message .= 'within ';
+    } else {
+        $message .= 'outside ';
+    }
+    $message .= 'temperature limits.';
+    $plugin->add_message( $exitcode, $message );
+}
+
+sub checkPSUHealth {
+    my %einfo = getEnvironmentInfo();
+    my ( $exitcode, $message ) = ( $exitcode = $einfo{FailedPSUCount} == 0 ? OK : CRITICAL, $einfo{FailedPSUMessage} );
+    $plugin->add_message( $exitcode, $message );
 }
 
 sub checkTreeByteQuotas {
@@ -478,6 +417,17 @@ sub checkTreeFileQuotas {
     }
 }
 
+sub checkUptime {
+    my ( $exitcode, $message );
+    $session->translate(0);
+    my $rawuptime = snmpGetRequest( "$baseOID.1.2.1.1.0", "uptime", 0 );
+    $rawuptime = int( $rawuptime / 100 );
+    my $uptime = parse_duration("$rawuptime seconds");
+    $exitcode = $plugin->check_threshold( check => $rawuptime / 3600, warning => $warning, critical => $critical );
+    $message = "System uptime is " . duration( $uptime, 3 ) . '.';
+    $plugin->add_message( $exitcode, $message );
+}
+
 sub checkUserByteQuotas {
     my %qinfo = getQuotaInfo();
     my ( $errorcount, $qcount, $qunlim ) = ( 0, 0, 0 );
@@ -527,6 +477,56 @@ sub checkUserFileQuotas {
 
     if ( $errorcount == 0 ) {
         $plugin->add_message( OK, "$qcount user file quotas, $qunlim unlimited quotas." );
+    }
+}
+
+sub checkVolumeBytes {
+    my %dfinfo = getDiskSpaceInfo();
+    my ( $errorcount, $volcount ) = ( 0, 0 );
+    foreach my $this ( keys %dfinfo ) {
+        next if ( $dfinfo{$this}{isAggregate} == 1 || $dfinfo{$this}{isSnapshot} == 1 );
+        my $usedbytes = $dfinfo{$this}{PcentUsedBytes} || "0";
+        my $hused     = $dfinfo{$this}{HumanUsedBytes};
+        my $htotal    = $dfinfo{$this}{HumanTotalBytes};
+        my $name      = $dfinfo{$this}{Name};
+        $volcount++;
+        $exitcode = $plugin->check_threshold( check => $usedbytes, warning => $warning, critical => $critical );
+        if ( $exitcode != OK ) {
+            $plugin->add_message( $exitcode, "Volume \'$name\' byte use is $hused/$htotal ($usedbytes%)." );
+            $errorcount++;
+        }
+    }
+
+    if ( $errorcount == 0 ) {
+        my $message = "$volcount volume";
+        $message .= $volcount == 1 ? ' is OK' : 's are OK';
+        $message .= '.';
+        $plugin->add_message( OK, $message );
+    }
+}
+
+sub checkVolumeInodes {
+    my %dfinfo = getDiskSpaceInfo();
+    my ( $errorcount, $volcount ) = ( 0, 0 );
+    foreach my $this ( keys %dfinfo ) {
+        next if ( $dfinfo{$this}{isAggregate} == 1 || $dfinfo{$this}{isSnapshot} == 1 );
+        my $usedinodes = $dfinfo{$this}{PcentUsedInodes} || "0";
+        my $used       = $dfinfo{$this}{UsedInodes};
+        my $total      = $dfinfo{$this}{TotalInodes};
+        my $name       = $dfinfo{$this}{Name};
+        $volcount++;
+        $exitcode = $plugin->check_threshold( check => $usedinodes, warning => $warning, critical => $critical );
+        if ( $exitcode != OK ) {
+            $plugin->add_message( $exitcode, "Volume \'$name\' inode use is $used/$total ($usedinodes%)." );
+            $errorcount++;
+        }
+    }
+
+    if ( $errorcount == 0 ) {
+        my $message = "$volcount volume";
+        $message .= $volcount == 1 ? ' is OK' : 's are OK';
+        $message .= '.';
+        $plugin->add_message( OK, $message );
     }
 }
 
@@ -604,7 +604,6 @@ sub getDiskSpaceInfo {
         }
         $dfinfo{$fs}{isAggregate} = $dfinfo{$fs}{Type} == 3 ? 1 : 0;
     }
-
     return %dfinfo;
 }
 
@@ -812,7 +811,6 @@ sub getEnclosureInfo {
         @tmpa = split /,/, $tmps;
         $encinfo{$this}{FansFailedCount} = scalar @tmpa;
     }
-
     return %encinfo;
 }
 
